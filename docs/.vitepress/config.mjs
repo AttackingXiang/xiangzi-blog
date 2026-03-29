@@ -2,6 +2,7 @@ import { defineConfig } from 'vitepress'
 import { withSidebar } from 'vitepress-sidebar'
 
 const vitepressConfig = {
+  base: '/xiangzi-blog/',
   title: '我的笔记',
   description: '个人学习笔记与备忘录',
   lang: 'zh-CN',
