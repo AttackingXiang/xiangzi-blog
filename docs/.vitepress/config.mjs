@@ -60,10 +60,12 @@ export default defineConfig(
       documentRootPath: '/docs',
       scanStartPath: 'notes',
       resolvePath: '/notes/',
-      useTitleFromFrontmatter: true,   // 用 frontmatter 的 title 作为菜单名
-      useFolderTitleFromIndexFile: true, // 用 index.md 的 title 作为分组名
+      useTitleFromFrontmatter: true,          // 用 frontmatter 的 title 作为菜单名
+      useFolderTitleFromIndexFile: true,      // 用 index.md 的 title 作为分组名
       collapsed: false,
-      excludeFiles: ['index.md'],       // 目录首页不出现在侧边栏列表里
+      excludeFiles: ['index.md'],             // 目录首页不出现在侧边栏列表里
+      sortMenusByFrontmatterOrder: true,      // 按 frontmatter 的 order 字段排序
+      frontmatterOrderDefaultValue: 999,      // 没写 order 的文件排到最后
     }
   ])
 )
