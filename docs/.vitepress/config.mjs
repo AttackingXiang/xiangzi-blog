@@ -13,7 +13,8 @@ const vitepressConfig = {
 
     nav: [
       { text: '首页', link: '/' },
-      { text: '科学上网', link: '/notes/科学上网/index', activeMatch: '/notes/科学上网/' }
+      { text: '科学上网', link: '/notes/科学上网/index', activeMatch: '/notes/科学上网/' },
+      { text: 'Vibe Coding', link: '/notes/vibe-coding/index', activeMatch: '/notes/vibe-coding/' }
     ],
 
     socialLinks: [],
@@ -54,19 +55,29 @@ const vitepressConfig = {
   }
 }
 
+const commonSidebarOptions = {
+  documentRootPath: '/docs',
+  useTitleFromFrontmatter: true,
+  useFolderTitleFromIndexFile: true,
+  useFolderLinkFromIndexFile: true,
+  collapsed: false,
+  excludeFiles: ['index.md'],
+  sortMenusByFrontmatterOrder: true,
+  frontmatterOrderDefaultValue: 999,
+  excludeFilesByFrontmatterFieldName: 'draft',
+}
+
 export default defineConfig(
   withSidebar(vitepressConfig, [
     {
-      // 扫描 docs/notes 下的所有目录，每个子目录作为一个侧边栏分组
-      documentRootPath: '/docs',
-      scanStartPath: 'notes',
-      resolvePath: '/notes/',
-      useTitleFromFrontmatter: true,          // 用 frontmatter 的 title 作为菜单名
-      useFolderTitleFromIndexFile: true,      // 用 index.md 的 title 作为分组名
-      collapsed: false,
-      excludeFiles: ['index.md'],             // 目录首页不出现在侧边栏列表里
-      sortMenusByFrontmatterOrder: true,      // 按 frontmatter 的 order 字段排序
-      frontmatterOrderDefaultValue: 999,      // 没写 order 的文件排到最后
-    }
+      ...commonSidebarOptions,
+      scanStartPath: 'notes/科学上网',
+      resolvePath: '/notes/科学上网/',
+    },
+    {
+      ...commonSidebarOptions,
+      scanStartPath: 'notes/vibe-coding',
+      resolvePath: '/notes/vibe-coding/',
+    },
   ])
 )
