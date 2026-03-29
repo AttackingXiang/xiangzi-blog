@@ -5,7 +5,7 @@ order: 2
 
 # superpowers — 超能力模式
 
-> **GitHub 源码**：[https://github.com/anthropics/claude-plugins-official/tree/main/plugins/superpowers](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/superpowers)
+> **GitHub 源码**：[https://github.com/obra/superpowers](https://github.com/obra/superpowers)
 >
 > **安装量**：294.8K | **类型**：官方插件
 
