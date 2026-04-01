@@ -11,12 +11,16 @@ hero:
       link: /notes/科学上网/index
 
 features:
-  - icon: 🌐
-    title: 科学上网
-    details: VPS 自建、Nginx 配置、订阅转换、节点管理等完整流程记录。
-    link: /notes/科学上网/index
+#  - icon: 🌐
+#    title: 科学上网
+#    details: VPS 自建、Nginx 配置、订阅转换、节点管理等完整流程记录。
+#    link: /notes/科学上网/index
   - icon: 🤖
     title: Vibe Coding
     details: Claude Code 命令速查、AI 编程工具使用技巧与最佳实践。
     link: /notes/vibe-coding/index
+  - icon: 🤖
+    title: claude源码资源
+    details: claude源码资源学习资料整理。
+    link: /notes/claude源码资源/index
 ---

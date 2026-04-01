@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitepress'
 import { withSidebar } from 'vitepress-sidebar'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
 const vitepressConfig = {
   base: '/xiangzi-blog/',
@@ -14,7 +15,8 @@ const vitepressConfig = {
     nav: [
       { text: '首页', link: '/' },
       { text: '科学上网', link: '/notes/科学上网/index', activeMatch: '/notes/科学上网/' },
-      { text: 'Vibe Coding', link: '/notes/vibe-coding/index', activeMatch: '/notes/vibe-coding/' }
+      { text: 'Vibe Coding', link: '/notes/vibe-coding/index', activeMatch: '/notes/vibe-coding/' },
+      { text: 'Claude 源码', link: '/notes/claude源码资源/index', activeMatch: '/notes/claude源码资源/' }
     ],
 
     socialLinks: [],
@@ -67,7 +69,7 @@ const commonSidebarOptions = {
   excludeFilesByFrontmatterFieldName: 'draft',
 }
 
-export default defineConfig(
+export default withMermaid(defineConfig(
   withSidebar(vitepressConfig, [
     {
       ...commonSidebarOptions,
@@ -79,5 +81,10 @@ export default defineConfig(
       scanStartPath: 'notes/vibe-coding',
       resolvePath: '/notes/vibe-coding/',
     },
+    {
+      ...commonSidebarOptions,
+      scanStartPath: 'notes/claude源码资源',
+      resolvePath: '/notes/claude源码资源/',
+    },
   ])
-)
+))
