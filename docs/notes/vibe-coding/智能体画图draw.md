@@ -31,7 +31,7 @@ npm install -g @drawio/mcp
 npx @drawio/mcp --version
 ```
 
-![安装验证](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw(mcp).assets/image-20260404220328162.png)
+![安装验证](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw.assets/image-20260404220328162.png)
 
 ✅ 安装完成
 
@@ -54,7 +54,7 @@ npx @drawio/mcp --version
 }
 ```
 
-![OpenCode 配置](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw(mcp).assets/image-20260404220204873.png)
+![OpenCode 配置](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw.assets/image-20260404220204873.png)
 
 ### 3.2 Claude Code 配置
 
@@ -81,7 +81,7 @@ claude mcp add drawio --transport stdio -- npx -y @drawio/mcp
 配置内容参数与 OpenCode 不完全相同。如果在 Claude 中配置过，OpenCode 即使不配置也可能生效（共享配置）。
 :::
 
-![Claude Code 配置](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw(mcp).assets/image-20260404221459990.png)
+![Claude Code 配置](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw.assets/image-20260404221459990.png)
 
 ### 3.3 Claude Desktop 配置
 
@@ -103,7 +103,7 @@ claude mcp add drawio --transport stdio -- npx -y @drawio/mcp
 }
 ```
 
-![Claude Desktop 配置](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw(mcp).assets/image-20260404221306134.png)
+![Claude Desktop 配置](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw.assets/image-20260404221306134.png)
 
 ✅ 配置完成
 
@@ -113,9 +113,9 @@ claude mcp add drawio --transport stdio -- npx -y @drawio/mcp
 
 重启应用后，输入 `/mcp` 命令，确认显示 `drawio connected` 即表示配置成功。
 
-![MCP 连接成功](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw(mcp).assets/image-20260404220423786.png)
+![MCP 连接成功](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw.assets/image-20260404220423786.png)
 
-![MCP 状态确认](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw(mcp).assets/image-20260404220428034.png)
+![MCP 状态确认](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw.assets/image-20260404220428034.png)
 
 ✅ 验证通过
 
@@ -133,13 +133,13 @@ claude mcp add drawio --transport stdio -- npx -y @drawio/mcp
 
 如果 AI 默认生成 URL 快捷方式，可能在 Windows 上因 URL 过长导致缓冲区错误：
 
-![缓冲区错误](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw(mcp).assets/image-20260404220514090.png)
+![缓冲区错误](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw.assets/image-20260404220514090.png)
 
 ::: tip 解决方式
 明确要求 AI 生成 `.drawio` 格式文件：`你直接生成 draw 格式的文件到指定目录下`
 :::
 
-![生成 draw 文件](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw(mcp).assets/image-20260404220652476.png)
+![生成 draw 文件](%E6%99%BA%E8%83%BD%E4%BD%93%E7%94%BB%E5%9B%BEdraw.assets/image-20260404220652476.png)
 
 生成成功后，文件可直接编辑。
 
