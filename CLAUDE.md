@@ -49,3 +49,17 @@
 - 所有说明文字用中文
 - 技术术语保留英文原词（如 RICE、TAM/SAM/SOM、MVP、system prompt）
 - 中英文之间加空格（如：`Claude Code 智能体`，不写 `ClaudeCode智能体`）
+
+---
+
+## 如果要演示文稿生成
+
+将笔记转换为 HTML 幻灯片演示文稿，输出到 `docs/slides/` 目录，具体放到那个位置跟notes中的相对位置相同
+
+```
+/web-ppt-generator @docs/notes/[路径/文件名.md] 根据这个生成一个 ppt 网页，输出到 docs/slides/
+```
+
+- 生成的文件为自包含 HTML，无外部依赖，可离线在浏览器中运行
+- 支持键盘 ↑↓、导航圆点、触摸滑动切换页面
+- 如需指定输出文件名：在描述中补充 `文件名为 xxx.html`

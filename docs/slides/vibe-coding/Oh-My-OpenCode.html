@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oh-My-OpenCode — AI 原生终端工作站</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --bg2: #0f0f1a;
+      --card: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --primary: #7c6af7;
+      --primary-glow: rgba(124,106,247,0.35);
+      --cyan: #22d3ee;
+      --cyan-glow: rgba(34,211,238,0.3);
+      --green: #4ade80;
+      --orange: #fb923c;
+      --pink: #f472b6;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #a78bfa;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-snap-type: y mandatory;
+      overflow-y: scroll;
+      height: 100%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      height: 100%;
+    }
+
+    /* ── Progress bar ── */
+    #progress {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--cyan));
+      transition: width 0.3s ease;
+      z-index: 100;
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    /* ── Slide counter ── */
+    #counter {
+      position: fixed;
+      bottom: 24px; right: 28px;
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      z-index: 100;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Nav dots ── */
+    #nav-dots {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+    }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .dot.active {
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--primary-glow);
+      transform: scale(1.4);
+    }
+
+    /* ── Slides ── */
+    .slide {
+      scroll-snap-align: start;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle grid background */
+    .slide::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(124,106,247,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,106,247,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    .slide-inner {
+      width: 100%;
+      max-width: 960px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Slide 1: Title ── */
+    #slide-1 {
+      background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(124,106,247,0.12) 0%, transparent 70%),
+                  var(--bg);
+    }
+    .title-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(124,106,247,0.12);
+      border: 1px solid rgba(124,106,247,0.3);
+      padding: 6px 16px;
+      border-radius: 100px;
+      font-size: 13px;
+      color: var(--accent);
+      margin-bottom: 32px;
+      letter-spacing: 1px;
+    }
+    .title-badge::before { content: '◆'; font-size: 8px; }
+    h1.hero {
+      font-size: clamp(48px, 7vw, 88px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      margin-bottom: 12px;
+    }
+    .hero-gradient {
+      background: linear-gradient(135deg, #fff 30%, var(--primary) 60%, var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-abbr {
+      display: block;
+      font-size: clamp(18px, 2.5vw, 28px);
+      background: linear-gradient(90deg, var(--primary), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 8px;
+      font-weight: 700;
+      margin-top: 8px;
+      margin-bottom: 28px;
+    }
+    .hero-sub {
+      font-size: clamp(15px, 1.8vw, 19px);
+      color: var(--text-muted);
+      max-width: 560px;
+      line-height: 1.7;
+      margin-bottom: 48px;
+    }
+    .hero-tags {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+    .tag-purple { background: rgba(124,106,247,0.1); border-color: rgba(124,106,247,0.3); color: var(--accent); }
+    .tag-cyan   { background: rgba(34,211,238,0.08); border-color: rgba(34,211,238,0.25); color: var(--cyan); }
+    .tag-green  { background: rgba(74,222,128,0.08); border-color: rgba(74,222,128,0.25); color: var(--green); }
+
+    /* Decorative glows */
+    .glow-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+    }
+
+    /* ── Section headers ── */
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--primary);
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    h2.slide-title {
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 12px;
+      line-height: 1.15;
+    }
+    .slide-desc {
+      color: var(--text-muted);
+      font-size: 16px;
+      line-height: 1.7;
+      margin-bottom: 40px;
+      max-width: 640px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 28px;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.25s ease,
+                  border-color 0.25s ease;
+      will-change: transform;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(200px circle at var(--mx,50%) var(--my,50%),
+        rgba(255,255,255,0.055), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      border-radius: inherit;
+    }
+    .card:hover::after { opacity: 1; }
+    .card:hover {
+      border-color: rgba(124,106,247,0.3);
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(124,106,247,0.25);
+    }
+    .card:active {
+      transform: translateY(-2px) scale(0.99);
+      transition-duration: 80ms;
+    }
+
+    /* ── Slide 2: Install ── */
+    .install-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .install-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.25s ease, border-color 0.25s ease;
+      will-change: transform;
+      position: relative; overflow: hidden;
+    }
+    .install-card::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(180px circle at var(--mx,50%) var(--my,50%),
+        rgba(255,255,255,0.05), transparent 70%);
+      opacity: 0; transition: opacity 0.3s ease;
+      pointer-events: none; border-radius: inherit;
+    }
+    .install-card:hover::after { opacity: 1; }
+    .install-card:hover {
+      border-color: rgba(124,106,247,0.35);
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(124,106,247,0.25);
+    }
+    .install-card:active { transform: translateY(-2px) scale(0.99); transition-duration: 80ms; }
+    .install-num {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      margin-bottom: 16px;
+      flex-shrink: 0;
+    }
+    .install-card h3 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+    .install-card p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .code-block {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: 'Consolas', 'Fira Code', monospace;
+      font-size: 13px;
+      color: var(--cyan);
+      overflow-x: auto;
+      line-height: 1.7;
+      white-space: pre;
+    }
+    .code-block .comment { color: var(--text-dim); }
+    .badge-rec {
+      display: inline-block;
+      background: rgba(74,222,128,0.12);
+      border: 1px solid rgba(74,222,128,0.3);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 100px;
+      letter-spacing: 1px;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+    .prompt-box {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-left: 3px solid var(--primary);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    /* ── Slide 3: Pantheon table ── */
+    .pantheon-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .agent-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.25s ease, border-color 0.25s ease;
+      will-change: transform;
+    }
+    .agent-card::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(180px circle at var(--mx,50%) var(--my,50%),
+        rgba(255,255,255,0.06), transparent 65%);
+      opacity: 0; transition: opacity 0.3s ease;
+      pointer-events: none; border-radius: inherit;
+      z-index: 0;
+    }
+    .agent-card:hover::after { opacity: 1; }
+    .pantheon-grid:hover .agent-card {
+      opacity: 0.55;
+      transform: scale(0.97);
+    }
+    .pantheon-grid:hover .agent-card:hover {
+      opacity: 1;
+      transform: translateY(-8px) scale(1.03);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.45), 0 0 30px rgba(124,106,247,0.12);
+    }
+    .agent-card:active { transform: translateY(-2px) scale(0.99) !important; transition-duration: 80ms; }
+    .agent-card > * { position: relative; z-index: 1; }
+    .agent-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .agent-sisyphus::before  { background: linear-gradient(90deg, var(--primary), var(--accent)); border-color: rgba(124,106,247,0.25); }
+    .agent-hephaestus::before { background: linear-gradient(90deg, var(--orange), #fbbf24); }
+    .agent-explorer::before  { background: linear-gradient(90deg, var(--cyan), #38bdf8); }
+    .agent-oracle::before    { background: linear-gradient(90deg, var(--pink), #e879f9); }
+    .agent-card:hover { border-color: rgba(124,106,247,0.3); }
+    .agent-icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+    .agent-role {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    .agent-name {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .agent-sisyphus  .agent-name { color: var(--accent); }
+    .agent-hephaestus .agent-name { color: var(--orange); }
+    .agent-explorer  .agent-name { color: var(--cyan); }
+    .agent-oracle    .agent-name { color: var(--pink); }
+    .agent-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .agent-model {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      padding: 4px 12px;
+      border-radius: 100px;
+    }
+    .agent-model::before { content: '⚡'; font-size: 10px; }
+
+    /* ── Slide 4: Ultrawork ── */
+    .ultrawork-banner {
+      background: linear-gradient(135deg, rgba(124,106,247,0.15), rgba(34,211,238,0.08));
+      border: 1px solid rgba(124,106,247,0.2);
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 28px;
+    }
+    .ultrawork-cmd {
+      font-family: 'Consolas', 'Fira Code', monospace;
+      font-size: 15px;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ultrawork-cmd::before { content: '$'; color: var(--text-dim); }
+    .steps-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .step-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.25s ease, border-color 0.25s ease;
+      will-change: transform;
+      position: relative; overflow: hidden;
+    }
+    .step-item::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(160px circle at var(--mx,50%) var(--my,50%),
+        rgba(255,255,255,0.05), transparent 70%);
+      opacity: 0; transition: opacity 0.3s ease;
+      pointer-events: none; border-radius: inherit;
+    }
+    .step-item:hover::after { opacity: 1; }
+    .step-item:hover {
+      transform: translateY(-5px) scale(1.02);
+      border-color: rgba(124,106,247,0.28);
+      box-shadow: 0 16px 32px rgba(0,0,0,0.3);
+    }
+    .step-item:active { transform: translateY(-1px) scale(0.99); transition-duration: 80ms; }
+    .step-num {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-1 { background: rgba(124,106,247,0.15); color: var(--accent); }
+    .step-2 { background: rgba(34,211,238,0.12);  color: var(--cyan); }
+    .step-3 { background: rgba(74,222,128,0.12);  color: var(--green); }
+    .step-4 { background: rgba(251,146,60,0.12);  color: var(--orange); }
+    .step-text h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .step-text p  { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+    /* ── Slide 5: MCP ── */
+    .mcp-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .mcp-card {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 26px;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.25s ease, border-color 0.25s ease,
+                  border-left-color 0.2s ease;
+      will-change: transform;
+      position: relative; overflow: hidden;
+      border-left: 3px solid transparent;
+    }
+    .mcp-card::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(200px circle at var(--mx,20%) var(--my,50%),
+        rgba(255,255,255,0.05), transparent 70%);
+      opacity: 0; transition: opacity 0.3s ease;
+      pointer-events: none; border-radius: inherit;
+    }
+    .mcp-card:hover::after { opacity: 1; }
+    .mcp-card:hover {
+      border-color: rgba(124,106,247,0.3);
+      border-left-color: var(--primary);
+      transform: translateX(6px) scale(1.01);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+    }
+    .mcp-card:active { transform: translateX(2px) scale(0.99); transition-duration: 80ms; }
+    .mcp-icon-wrap {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .mcp-1 { background: rgba(124,106,247,0.15); }
+    .mcp-2 { background: rgba(34,211,238,0.12); }
+    .mcp-3 { background: rgba(74,222,128,0.12); }
+    .mcp-info h3 {
+      font-size: 16px; font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .mcp-info .mcp-name { font-family: monospace; color: var(--cyan); }
+    .mcp-info p { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px; }
+    .mcp-scenario {
+      font-size: 13px;
+      color: var(--text-dim);
+      background: rgba(0,0,0,0.3);
+      border-left: 2px solid var(--primary);
+      padding: 6px 12px;
+      border-radius: 0 6px 6px 0;
+      font-style: italic;
+    }
+
+    /* ── Slide 6: Why ── */
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .why-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.25s ease, border-color 0.25s ease;
+      will-change: transform;
+      position: relative; overflow: hidden;
+    }
+    .why-card::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(160px circle at var(--mx,50%) var(--my,50%),
+        rgba(255,255,255,0.06), transparent 70%);
+      opacity: 0; transition: opacity 0.3s ease;
+      pointer-events: none; border-radius: inherit;
+    }
+    .why-card:hover::after { opacity: 1; }
+    .why-grid:hover .why-card {
+      opacity: 0.6;
+      transform: scale(0.97);
+    }
+    .why-grid:hover .why-card:hover {
+      opacity: 1;
+      transform: translateY(-8px) scale(1.04);
+      border-color: rgba(124,106,247,0.35);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.35), 0 0 20px rgba(124,106,247,0.1);
+    }
+    .why-card:active { transform: translateY(-2px) scale(0.99) !important; transition-duration: 80ms; }
+    .why-icon { font-size: 32px; margin-bottom: 14px; }
+    .why-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .why-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+    .config-hint {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 16px 22px;
+      font-family: monospace;
+      font-size: 13px;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .config-hint span { color: var(--text-muted); }
+    .config-hint::before { content: '📄'; font-size: 16px; }
+
+    /* ── Slide 7: End ── */
+    #slide-7 {
+      background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(124,106,247,0.1) 0%, transparent 70%),
+                  var(--bg);
+      text-align: center;
+    }
+    .end-logo {
+      font-size: 56px;
+      margin-bottom: 24px;
+    }
+    .end-title {
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 800;
+      letter-spacing: -2px;
+      background: linear-gradient(135deg, #fff 20%, var(--primary) 55%, var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+    .end-sub {
+      font-size: 17px;
+      color: var(--text-muted);
+      max-width: 480px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+    .end-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .end-stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 14px;
+    }
+    .end-stat-num {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .end-stat-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .slide-inner > * {
+      animation: fadeUp 0.6s ease both;
+    }
+    .slide-inner > *:nth-child(1) { animation-delay: 0.05s; }
+    .slide-inner > *:nth-child(2) { animation-delay: 0.15s; }
+    .slide-inner > *:nth-child(3) { animation-delay: 0.25s; }
+    .slide-inner > *:nth-child(4) { animation-delay: 0.35s; }
+    .slide-inner > *:nth-child(5) { animation-delay: 0.45s; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .slide { padding: 40px 24px; }
+      .install-grid,
+      .pantheon-grid,
+      .steps-list,
+      .why-grid,
+      .end-grid { grid-template-columns: 1fr; }
+      #nav-dots { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div id="counter">1 / 7</div>
+<div id="nav-dots"></div>
+
+<!-- ══════════════════════════════════════
+     SLIDE 1 · TITLE
+══════════════════════════════════════ -->
+<section class="slide" id="slide-1">
+  <div class="glow-orb" style="width:600px;height:400px;background:rgba(124,106,247,0.08);top:-100px;right:-100px;"></div>
+  <div class="glow-orb" style="width:400px;height:400px;background:rgba(34,211,238,0.05);bottom:-80px;left:0;"></div>
+  <div class="slide-inner">
+    <div class="title-badge">AI 原生开发工具</div>
+    <h1 class="hero">
+      <span class="hero-gradient">Oh-My-OpenCode</span>
+      <span class="hero-abbr">O · M · O</span>
+    </h1>
+    <p class="hero-sub">
+      面向 AI 原生开发者的增强型命令行工具集，通过<strong style="color:var(--text)">「万神殿」多智能体架构</strong>和 MCP 协议，将你的终端转变为一个全自动的编码工作站。
+    </p>
+    <div class="hero-tags">
+      <span class="tag tag-purple">🏛️ 多智能体架构</span>
+      <span class="tag tag-cyan">⚡ MCP 协议</span>
+      <span class="tag tag-green">🤖 全自动 Ultrawork</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     SLIDE 2 · INSTALLATION
+══════════════════════════════════════ -->
+<section class="slide" id="slide-2">
+  <div class="slide-inner">
+    <div class="section-label">安装与配置</div>
+    <h2 class="slide-title">两分钟快速上手</h2>
+    <p class="slide-desc">支持两种安装方式，推荐直接在 AI 助手会话中一键完成配置，无需手动操作。</p>
+
+    <div class="install-grid">
+      <div class="install-card">
+        <div class="install-num">1</div>
+        <h3>AI 助手一键安装 <span class="badge-rec">推荐</span></h3>
+        <p>在 Cursor / Claude Code / OpenCode 会话中直接粘贴安装提示词，AI 自动完成全部配置。</p>
+        <div class="prompt-box">
+          Install and configure oh-my-opencode by following the instructions here:<br>
+          <span style="color:var(--primary)">https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/...</span>
+        </div>
+      </div>
+
+      <div class="install-card">
+        <div class="install-num">2</div>
+        <h3>交互式命令行安装</h3>
+        <p>通过 Bun 或 npx 在终端中交互式完成安装，过程中准备好你的 API Key 即可。</p>
+        <div class="code-block"><span class="comment"># 使用 Bun（推荐，速度极快）</span>
+bunx oh-my-opencode install
+
+<span class="comment"># 或使用 npx</span>
+npx oh-my-opencode install</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     SLIDE 3 · THE PANTHEON
+══════════════════════════════════════ -->
+<section class="slide" id="slide-3">
+  <div class="slide-inner">
+    <div class="section-label">核心架构</div>
+    <h2 class="slide-title">🏛️ 万神殿<br><span style="font-size:0.6em;color:var(--text-muted);font-weight:500">The Pantheon</span></h2>
+    <p class="slide-desc">OMO 将任务分发给具有不同"人格"的 AI 智能体，各司其职，协同完成复杂任务。</p>
+
+    <div class="pantheon-grid">
+      <div class="agent-card agent-sisyphus">
+        <div class="agent-icon">🎯</div>
+        <div class="agent-role">首席策划</div>
+        <div class="agent-name">Sisyphus</div>
+        <div class="agent-desc">全局规划、任务拆解、矛盾协调。统筹整个开发流程，把控方向。</div>
+        <span class="agent-model">Claude 3.5 Sonnet / 4.0</span>
+      </div>
+
+      <div class="agent-card agent-hephaestus">
+        <div class="agent-icon">🔨</div>
+        <div class="agent-role">工匠</div>
+        <div class="agent-name">Hephaestus</div>
+        <div class="agent-desc">具体代码实现、重构、Bug 修复。将方案转化为高质量代码产出。</div>
+        <span class="agent-model">Claude 3.5 / GPT-4o</span>
+      </div>
+
+      <div class="agent-card agent-explorer">
+        <div class="agent-icon">🔍</div>
+        <div class="agent-role">侦察兵</div>
+        <div class="agent-name">Explorer</div>
+        <div class="agent-desc">代码库扫描、文件定位、模式搜索。低延迟、高效率地探索项目结构。</div>
+        <span class="agent-model">Gemini 1.5 Flash</span>
+      </div>
+
+      <div class="agent-card agent-oracle">
+        <div class="agent-icon">🔮</div>
+        <div class="agent-role">战略顾问</div>
+        <div class="agent-name">Oracle</div>
+        <div class="agent-desc">架构决策、复杂逻辑攻坚。处理需要深度推理的高难度技术问题。</div>
+        <span class="agent-model">o1 / GPT-5 系列</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     SLIDE 4 · ULTRAWORK
+══════════════════════════════════════ -->
+<section class="slide" id="slide-4">
+  <div class="slide-inner">
+    <div class="section-label">招牌功能</div>
+    <h2 class="slide-title">⚡ Ultrawork<br><span style="font-size:0.6em;color:var(--text-muted);font-weight:500">全自动模式</span></h2>
+    <p class="slide-desc">输入一个复杂的模糊需求，系统进入<strong style="color:var(--text)">自主循环</strong>，自动探索、规划、并行执行、验证，直到成功。</p>
+
+    <div class="ultrawork-banner">
+      <div class="ultrawork-cmd">ultrawork: 为我的 VitePress 博客添加基于 Giscus 的评论系统</div>
+    </div>
+
+    <div class="steps-list">
+      <div class="step-item">
+        <div class="step-num step-1">1</div>
+        <div class="step-text">
+          <h4>探索 Explore</h4>
+          <p>自动读取 <code style="color:var(--cyan);font-size:12px">config.ts</code> 和主题入口，理解项目结构。</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num step-2">2</div>
+        <div class="step-text">
+          <h4>计划 Plan</h4>
+          <p>确定需要修改的 Vue 组件位置及环境变量配置方案。</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num step-3">3</div>
+        <div class="step-text">
+          <h4>并行 Execute</h4>
+          <p>同步启动子任务：生成配置代码、修改主题布局、更新文档。</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num step-4">4</div>
+        <div class="step-text">
+          <h4>验证 Verify</h4>
+          <p>自动运行 <code style="color:var(--orange);font-size:12px">npm run build</code>，报错则自动修复，直到成功。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     SLIDE 5 · MCP SERVERS
+══════════════════════════════════════ -->
+<section class="slide" id="slide-5">
+  <div class="slide-inner">
+    <div class="section-label">MCP 集成</div>
+    <h2 class="slide-title">🔌 实时超能力<br><span style="font-size:0.6em;color:var(--text-muted);font-weight:500">MCP Servers</span></h2>
+    <p class="slide-desc">OMO 深度集成 Model Context Protocol，通过 <code style="color:var(--cyan)">/status</code> 查看当前激活的服务。</p>
+
+    <div class="mcp-list">
+      <div class="mcp-card">
+        <div class="mcp-icon-wrap mcp-1">🌐</div>
+        <div class="mcp-info">
+          <h3><span class="mcp-name">websearch</span> — 实时联网</h3>
+          <p>突破模型训练数据的时间限制，获取最新的技术资讯和文档。</p>
+          <div class="mcp-scenario">场景：查询 VitePress 2.0 最新的 API 变更。</div>
+        </div>
+      </div>
+
+      <div class="mcp-card">
+        <div class="mcp-icon-wrap mcp-2">📚</div>
+        <div class="mcp-info">
+          <h3><span class="mcp-name">context7</span> — 实时技术栈知识库</h3>
+          <p>自动同步最新开源库的官方文档，避免使用已弃用的 API。</p>
+          <div class="mcp-scenario">场景：确保 AI 使用最新的 React Hooks 语法，而非过时写法。</div>
+        </div>
+      </div>
+
+      <div class="mcp-card">
+        <div class="mcp-icon-wrap mcp-3">🔎</div>
+        <div class="mcp-info">
+          <h3><span class="mcp-name">grep_app</span> — GitHub 全量搜索</h3>
+          <p>在数百万开源仓库中寻找代码实现参考，站在巨人的肩膀上。</p>
+          <div class="mcp-scenario">场景：看看别人是怎么在 VitePress 里实现暗黑模式切换动画的。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     SLIDE 6 · WHY OMO
+══════════════════════════════════════ -->
+<section class="slide" id="slide-6">
+  <div class="slide-inner">
+    <div class="section-label">核心优势</div>
+    <h2 class="slide-title">为什么选择 OMO？</h2>
+    <p class="slide-desc">不只是快，更是聪明——在成本、质量、效率三个维度上同时突破。</p>
+
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-icon">💎</div>
+        <h3>极致省钱</h3>
+        <p>智能路由技术：UI 微调交廉价的 Gemini，核心逻辑交昂贵的 Claude，最大化 Token 价值。</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">🌳</div>
+        <h3>理解 AST</h3>
+        <p>不是简单的文本替换，而是像编译器一样理解你的代码抽象语法树结构，精准操作。</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">⚡</div>
+        <h3>并行处理</h3>
+        <p>支持 5+ 个任务同步推进，多智能体协作，开发效率呈指数级提升。</p>
+      </div>
+    </div>
+
+    <div class="config-hint">
+      <span>配置各智能体模型：</span>
+      <code style="color:var(--cyan)">~/.config/opencode/oh-my-opencode.json</code>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     SLIDE 7 · END
+══════════════════════════════════════ -->
+<section class="slide" id="slide-7">
+  <div class="glow-orb" style="width:500px;height:500px;background:rgba(124,106,247,0.07);top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+  <div class="slide-inner" style="text-align:center;">
+    <div class="end-logo">🚀</div>
+    <div class="end-title">开始你的<br>AI 原生开发之旅</div>
+    <div class="end-sub">Oh-My-OpenCode — 让 AI 不只是助手，而是你的开发团队。</div>
+
+    <div class="end-grid">
+      <div class="end-stat">
+        <div class="end-stat-num">4</div>
+        <div class="end-stat-label">智能体角色</div>
+      </div>
+      <div class="end-stat">
+        <div class="end-stat-num">5+</div>
+        <div class="end-stat-label">并行任务支持</div>
+      </div>
+      <div class="end-stat">
+        <div class="end-stat-num">3</div>
+        <div class="end-stat-label">MCP 实时服务</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const TOTAL = 7;
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const progressBar = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  const navDots = document.getElementById('nav-dots');
+
+  // Build nav dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => slides[i].scrollIntoView({ behavior: 'smooth' }));
+    navDots.appendChild(d);
+  });
+
+  let current = 0;
+
+  function updateUI(idx) {
+    current = idx;
+    const pct = TOTAL === 1 ? 100 : (idx / (TOTAL - 1)) * 100;
+    progressBar.style.width = pct + '%';
+    counter.textContent = (idx + 1) + ' / ' + TOTAL;
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === idx);
+    });
+  }
+
+  // IntersectionObserver for active slide
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const idx = slides.indexOf(e.target);
+        if (idx !== -1) updateUI(idx);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  slides.forEach(s => observer.observe(s));
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+      e.preventDefault();
+      const next = Math.min(current + 1, TOTAL - 1);
+      slides[next].scrollIntoView({ behavior: 'smooth' });
+    } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault();
+      const prev = Math.max(current - 1, 0);
+      slides[prev].scrollIntoView({ behavior: 'smooth' });
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      slides[0].scrollIntoView({ behavior: 'smooth' });
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      slides[TOTAL - 1].scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+
+  // Touch gesture
+  let touchY = 0;
+  document.addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dy = touchY - e.changedTouches[0].clientY;
+    if (Math.abs(dy) > 50) {
+      const next = dy > 0 ? Math.min(current + 1, TOTAL - 1) : Math.max(current - 1, 0);
+      slides[next].scrollIntoView({ behavior: 'smooth' });
+    }
+  }, { passive: true });
+
+  updateUI(0);
+
+  // ── Mouse-tracking glow for all interactive cards ──
+  const interactiveCards = document.querySelectorAll(
+    '.card, .install-card, .agent-card, .step-item, .mcp-card, .why-card'
+  );
+  interactiveCards.forEach(el => {
+    el.addEventListener('mousemove', (e) => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+      el.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+    });
+  });
+</script>
+</body>
+</html>

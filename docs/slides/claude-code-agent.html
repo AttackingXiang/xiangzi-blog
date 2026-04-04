@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code 创建智能体</title>
+  <style>
+    /* 1. CSS Variables */
+    :root {
+      --bg: #0a0a0f;
+      --card: rgba(255,255,255,.04);
+      --border: rgba(255,255,255,.08);
+      --primary: #7c6af7;
+      --primary-rgb: 124 106 247;
+      --accent: #22d3ee;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+    }
+
+    /* 2. Reset + Base */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-snap-type: y mandatory; overflow-y: scroll; height: 100%; }
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+    }
+
+    /* 3. System 1: Navigation */
+    .slide {
+      scroll-snap-align: start;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 60px 80px;
+      position: relative; overflow: hidden;
+    }
+    .slide::before {
+      content: ''; position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(var(--primary-rgb),.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--primary-rgb),.025) 1px, transparent 1px);
+      background-size: 48px 48px; pointer-events: none;
+    }
+
+    #progress {
+      position: fixed; top: 0; left: 0; height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      transition: width 0.35s ease; z-index: 200;
+      box-shadow: 0 0 10px var(--primary);
+    }
+    #counter {
+      position: fixed; bottom: 24px; right: 28px;
+      font-size: 12px; color: var(--text-dim);
+      letter-spacing: 2px; z-index: 200;
+      font-variant-numeric: tabular-nums;
+    }
+    #nav-dots {
+      position: fixed; right: 20px; top: 50%;
+      transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 8px; z-index: 200;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-dim); cursor: pointer;
+      transition: background 0.3s, transform 0.3s, box-shadow 0.3s;
+    }
+    .dot.active {
+      background: var(--primary); transform: scale(1.6);
+      box-shadow: 0 0 8px var(--primary);
+    }
+
+    /* 4. System 2: Reveal Animation */
+    .reveal {
+      opacity: 0; transform: translateY(28px);
+      transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal:nth-child(1) { transition-delay: .05s }
+    .reveal:nth-child(2) { transition-delay: .15s }
+    .reveal:nth-child(3) { transition-delay: .25s }
+    .reveal:nth-child(4) { transition-delay: .35s }
+    .reveal:nth-child(5) { transition-delay: .45s }
+    .reveal:nth-child(6) { transition-delay: .55s }
+
+    .cards-reveal .card {
+      opacity: 0; transform: translateY(24px) scale(0.97);
+      transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .cards-reveal.visible .card:nth-child(1) { opacity:1; transform:none; transition-delay:.1s }
+    .cards-reveal.visible .card:nth-child(2) { opacity:1; transform:none; transition-delay:.2s }
+    .cards-reveal.visible .card:nth-child(3) { opacity:1; transform:none; transition-delay:.3s }
+    .cards-reveal.visible .card:nth-child(4) { opacity:1; transform:none; transition-delay:.4s }
+    .cards-reveal.visible .card:nth-child(5) { opacity:1; transform:none; transition-delay:.5s }
+    .cards-reveal.visible .card:nth-child(6) { opacity:1; transform:none; transition-delay:.6s }
+
+    /* 5. System 3: Card Micro-interactions */
+    .card {
+      position: relative; overflow: hidden;
+      transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease,
+                  border-color .25s ease, opacity .25s ease;
+      will-change: transform;
+    }
+    .card::after {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(200px circle at var(--mx,50%) var(--my,50%),
+        rgba(255,255,255,.07), transparent 70%);
+      opacity: 0; transition: opacity .3s ease;
+      pointer-events: none; border-radius: inherit; z-index: 0;
+    }
+    .card:hover::after { opacity: 1; }
+    .card > * { position: relative; z-index: 1; }
+    .card:hover {
+      transform: translateY(-6px) scale(1.025);
+      box-shadow: 0 20px 40px rgba(0,0,0,.35),
+                  0 0 0 1px rgba(var(--primary-rgb),.28);
+      border-color: rgba(var(--primary-rgb),.3);
+    }
+    .card:active { transform: translateY(-2px) scale(.99); transition-duration: 80ms; }
+
+    .cards-grid:hover .card { opacity: .55; transform: scale(.965); }
+    .cards-grid:hover .card:hover {
+      opacity: 1; transform: translateY(-8px) scale(1.03);
+      box-shadow: 0 24px 48px rgba(0,0,0,.45), 0 0 0 1px rgba(var(--primary-rgb),.3);
+    }
+
+    /* 6. System 4: Flow Diagram */
+    .flow-path {
+      stroke-dasharray: var(--pl, 500); stroke-dashoffset: var(--pl, 500); opacity: 0;
+      transition: stroke-dashoffset var(--draw-dur,.65s) cubic-bezier(.4,0,.2,1) var(--draw-delay,0s),
+                  opacity .05s linear var(--draw-delay,0s);
+    }
+    .flow-path.drawn { stroke-dashoffset: 0; opacity: 1; }
+
+    .flow-node {
+      opacity: 0; transform-box: fill-box; transform-origin: center; transform: scale(.5);
+      transition: opacity .35s ease var(--node-delay,0s),
+                  transform .4s cubic-bezier(.34,1.56,.64,1) var(--node-delay,0s);
+    }
+    .flow-node.visible { opacity: 1; transform: scale(1); }
+
+    .flow-label { opacity: 0; transition: opacity .3s ease var(--label-delay,0s); }
+    .flow-label.visible { opacity: 1; }
+
+    .diagram-container {
+      width: 100%; max-width: 960px; margin: 0 auto;
+      padding: 28px 24px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .diagram-container:hover {
+      border-color: rgba(var(--primary-rgb),.3);
+      box-shadow: 0 0 0 1px rgba(var(--primary-rgb),.1), 0 20px 40px rgba(0,0,0,.2);
+    }
+    .flow-svg { width: 100%; height: auto; display: block; overflow: visible; }
+    .flow-svg text { font-family: inherit; }
+
+    /* 7. Layout Utilities */
+    .slide-inner { width: 100%; max-width: 960px; position: relative; z-index: 1; }
+    .section-label {
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--primary); font-weight: 700; margin-bottom: 14px;
+    }
+    .slide-title {
+      font-size: clamp(28px,4vw,52px); font-weight: 800;
+      letter-spacing: -1px; line-height: 1.1; margin-bottom: 12px;
+    }
+    .slide-desc {
+      font-size: 16px; color: var(--text-muted);
+      line-height: 1.75; margin-bottom: 32px; max-width: 640px;
+    }
+    .cards-grid { display: grid; gap: 16px; }
+    .cards-grid-2 { grid-template-columns: 1fr 1fr; }
+    .cards-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .cards-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+    /* 8. Slide-specific Styles */
+
+    /* Slide 1: Title */
+    #slide-1 {
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(var(--primary-rgb),.1), transparent 70%);
+    }
+    .title-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(var(--primary-rgb),.1);
+      border: 1px solid rgba(var(--primary-rgb),.2);
+      border-radius: 100px; padding: 6px 16px;
+      font-size: 13px; color: var(--primary);
+      margin-bottom: 24px;
+    }
+    .hero-title {
+      font-size: clamp(36px, 5.5vw, 68px); font-weight: 900;
+      letter-spacing: -2px; line-height: 1.05;
+      margin-bottom: 20px;
+    }
+    .hero-title span { color: var(--primary); }
+    .hero-sub {
+      font-size: 17px; color: var(--text-muted);
+      line-height: 1.75; max-width: 580px;
+      border-left: 3px solid var(--primary);
+      padding-left: 16px;
+      margin-bottom: 36px;
+    }
+    .hero-sub code {
+      background: rgba(var(--primary-rgb),.15);
+      color: var(--primary); border-radius: 4px;
+      padding: 1px 6px; font-family: monospace; font-size: 14px;
+    }
+    .tag-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .tag {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 100px; padding: 5px 14px;
+      font-size: 12px; color: var(--text-muted);
+    }
+
+    /* Overview Cards */
+    .info-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 20px;
+    }
+    .info-card-icon { font-size: 26px; margin-bottom: 10px; }
+    .info-card-value {
+      font-size: 22px; font-weight: 800;
+      color: var(--primary); margin-bottom: 4px;
+      font-family: monospace;
+    }
+    .info-card-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .info-card-desc { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+
+    /* Storage Cards */
+    .storage-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 28px;
+    }
+    .storage-card.featured {
+      border-color: rgba(var(--primary-rgb),.35);
+      background: rgba(var(--primary-rgb),.05);
+    }
+    .storage-icon { font-size: 36px; margin-bottom: 12px; }
+    .storage-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .storage-path {
+      font-size: 12px; font-family: 'Fira Code', monospace;
+      color: var(--accent);
+      background: rgba(34,211,238,.08);
+      border-radius: 6px; padding: 5px 12px;
+      display: inline-block; margin-bottom: 14px;
+    }
+    .storage-desc { font-size: 14px; color: var(--text-muted); line-height: 1.65; margin-bottom: 14px; }
+    .storage-pill {
+      display: inline-block;
+      background: rgba(var(--primary-rgb),.1);
+      border: 1px solid rgba(var(--primary-rgb),.2);
+      border-radius: 100px; padding: 3px 12px;
+      font-size: 12px; color: var(--primary);
+    }
+
+    /* Step Cards */
+    .step-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+    .step-num {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(var(--primary-rgb),.12);
+      border: 1px solid rgba(var(--primary-rgb),.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: var(--primary);
+      flex-shrink: 0;
+    }
+    .step-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .step-desc { font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+
+    /* Tool Cards */
+    .tool-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .tool-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .tool-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+    .tool-badge {
+      font-size: 11px; padding: 3px 10px; border-radius: 100px;
+      display: inline-block;
+    }
+    .badge-must { background: rgba(var(--primary-rgb),.15); color: var(--primary); border: 1px solid rgba(var(--primary-rgb),.25); }
+    .badge-opt  { background: rgba(34,211,238,.1); color: var(--accent); border: 1px solid rgba(34,211,238,.2); }
+    .badge-warn { background: rgba(251,191,36,.1); color: #fbbf24; border: 1px solid rgba(251,191,36,.2); }
+
+    /* Tip Cards */
+    .tip-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 12px 12px 0;
+      padding: 18px 22px;
+    }
+    .tip-label {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--primary); font-weight: 700; margin-bottom: 8px;
+    }
+    .tip-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .tip-desc { font-size: 13px; color: var(--text-muted); line-height: 1.65; }
+
+    /* Idea Cards */
+    .idea-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 18px;
+    }
+    .idea-icon { font-size: 24px; margin-bottom: 8px; }
+    .idea-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+    .idea-desc { font-size: 12px; color: var(--text-muted); line-height: 1.55; }
+
+    /* Closing Slide */
+    #slide-9 {
+      background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(var(--primary-rgb),.08), transparent 70%);
+    }
+    .mono-block {
+      background: rgba(0,0,0,.3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 22px;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 2;
+    }
+    .mono-dim { color: var(--text-dim); }
+    .mono-muted { color: var(--text-muted); }
+    .mono-accent { color: var(--accent); }
+    .check-list { display: flex; flex-direction: column; gap: 10px; }
+    .check-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 14px; color: var(--text-muted);
+    }
+    .check-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--primary); box-shadow: 0 0 8px var(--primary);
+      flex-shrink: 0;
+    }
+
+    /* 9. Responsive */
+    @media (max-width: 768px) {
+      .slide { padding: 40px 24px; }
+      .cards-grid-2, .cards-grid-3, .cards-grid-4 { grid-template-columns: 1fr; }
+      .hero-title { font-size: 32px; }
+      #nav-dots { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="progress"></div>
+  <div id="counter"></div>
+  <div id="nav-dots"></div>
+
+  <!-- Slide 1: Title -->
+  <section class="slide" id="slide-1" data-index="0">
+    <div class="slide-inner">
+      <div class="title-badge">🤖 Claude Code Sub-agent</div>
+      <h1 class="hero-title">创建<span>智能体</span><br>完全指南</h1>
+      <p class="hero-sub">子智能体（Sub-agent）是 Claude Code 中可复用的专属 AI 助手，通过 <code>/agent</code> 命令唤醒，拥有独立的角色设定、行为规范和工具权限。</p>
+      <div class="tag-row">
+        <span class="tag">/agent 命令</span>
+        <span class="tag">项目级 / 用户级</span>
+        <span class="tag">AI 辅助生成</span>
+        <span class="tag">工具权限控制</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 2: Overview -->
+  <section class="slide" id="slide-2" data-index="1">
+    <div class="slide-inner">
+      <div class="section-label">快速概览</div>
+      <h2 class="slide-title">智能体核心属性</h2>
+      <p class="slide-desc">四个维度，快速了解 Claude Code 智能体的能力边界</p>
+      <div class="cards-grid cards-grid-4">
+        <div class="card info-card">
+          <div class="info-card-icon">📋</div>
+          <div class="info-card-value">/agent</div>
+          <div class="info-card-title">命令入口</div>
+          <div class="info-card-desc">在 Claude Code 中直接输入唤醒面板</div>
+        </div>
+        <div class="card info-card">
+          <div class="info-card-icon">🗂️</div>
+          <div class="info-card-value">2 级</div>
+          <div class="info-card-title">存储位置</div>
+          <div class="info-card-desc">项目级或用户级，灵活选择作用范围</div>
+        </div>
+        <div class="card info-card">
+          <div class="info-card-icon">✨</div>
+          <div class="info-card-value">AI 生成</div>
+          <div class="info-card-title">创建方式</div>
+          <div class="info-card-desc">AI 辅助或手动配置，推荐 AI 辅助</div>
+        </div>
+        <div class="card info-card">
+          <div class="info-card-icon">⚡</div>
+          <div class="info-card-value">全工具</div>
+          <div class="info-card-title">核心能力</div>
+          <div class="info-card-desc">角色扮演 + 工具调用，按需授权</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 3: Storage Levels -->
+  <section class="slide" id="slide-3" data-index="2">
+    <div class="slide-inner">
+      <div class="section-label">存储级别对比</div>
+      <h2 class="slide-title">项目级 vs 用户级</h2>
+      <p class="slide-desc">创建前先决定智能体的作用范围，两种级别适用不同场景</p>
+      <div class="cards-grid cards-grid-2">
+        <div class="card storage-card featured">
+          <div class="storage-icon">📁</div>
+          <div class="storage-title">项目级</div>
+          <div class="storage-path">.claude/agents/</div>
+          <div class="storage-desc">与项目代码一起管理，团队成员可共享。适合业务强相关的智能体，如代码审查、产品分析。</div>
+          <span class="storage-pill">团队共享 · 随项目版本控制</span>
+        </div>
+        <div class="card storage-card">
+          <div class="storage-icon">👤</div>
+          <div class="storage-title">用户级</div>
+          <div class="storage-path">~/.claude/agents/</div>
+          <div class="storage-desc">个人专属，跨项目全局可用。适合个人工作流助手，不与特定项目绑定。</div>
+          <span class="storage-pill">跨项目使用 · 个人私有</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 4: Creation Flow Diagram -->
+  <section class="slide" id="slide-4" data-index="3">
+    <div class="slide-inner">
+      <div class="section-label">创建流程</div>
+      <h2 class="slide-title">六步完成创建</h2>
+      <p class="slide-desc">从打开面板到配置完成，全程不超过 5 分钟</p>
+      <div class="diagram-container">
+        <svg class="flow-svg" viewBox="0 0 530 190" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0,10 3.5,0 7" fill="var(--primary)"/>
+            </marker>
+            <filter id="node-glow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="3" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <linearGradient id="path-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="var(--primary)" stop-opacity="0.7"/>
+              <stop offset="100%" stop-color="var(--accent)" stop-opacity="1"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Row 1: Step 1 → 2 → 3 -->
+          <g class="flow-node" data-delay="0">
+            <rect x="10" y="15" width="130" height="55" rx="10"
+                  fill="var(--card)" stroke="var(--primary)" stroke-width="1.5" filter="url(#node-glow)"/>
+            <text x="75" y="38" text-anchor="middle" fill="var(--primary)" font-size="10" font-weight="700" letter-spacing="1">STEP 1</text>
+            <text x="75" y="57" text-anchor="middle" fill="var(--text)" font-size="12">打开面板</text>
+          </g>
+
+          <line class="flow-path" x1="140" y1="42" x2="178" y2="42"
+                stroke="url(#path-grad)" stroke-width="2" marker-end="url(#arrow)" data-delay="0.3"/>
+
+          <g class="flow-node" data-delay="0.45">
+            <rect x="180" y="15" width="130" height="55" rx="10"
+                  fill="var(--card)" stroke="var(--accent)" stroke-width="1.5"/>
+            <text x="245" y="38" text-anchor="middle" fill="var(--accent)" font-size="10" font-weight="700" letter-spacing="1">STEP 2</text>
+            <text x="245" y="57" text-anchor="middle" fill="var(--text)" font-size="12">新建智能体</text>
+          </g>
+
+          <line class="flow-path" x1="310" y1="42" x2="348" y2="42"
+                stroke="url(#path-grad)" stroke-width="2" marker-end="url(#arrow)" data-delay="0.75"/>
+
+          <g class="flow-node" data-delay="0.9">
+            <rect x="350" y="15" width="130" height="55" rx="10"
+                  fill="var(--card)" stroke="var(--primary)" stroke-width="1.5"/>
+            <text x="415" y="38" text-anchor="middle" fill="var(--primary)" font-size="10" font-weight="700" letter-spacing="1">STEP 3</text>
+            <text x="415" y="57" text-anchor="middle" fill="var(--text)" font-size="12">选择级别</text>
+          </g>
+
+          <!-- Connector: Step 3 bottom-right → Step 4 right edge (snake down) -->
+          <path class="flow-path" d="M 480 42 L 512 42 L 512 132 L 482 132"
+                stroke="url(#path-grad)" stroke-width="2" fill="none" marker-end="url(#arrow)" data-delay="1.2"/>
+
+          <!-- Row 2: Step 4 ← 5 ← 6 (right to left) -->
+          <g class="flow-node" data-delay="1.35">
+            <rect x="350" y="105" width="130" height="55" rx="10"
+                  fill="var(--card)" stroke="var(--accent)" stroke-width="1.5"/>
+            <text x="415" y="128" text-anchor="middle" fill="var(--accent)" font-size="10" font-weight="700" letter-spacing="1">STEP 4</text>
+            <text x="415" y="147" text-anchor="middle" fill="var(--text)" font-size="12">选择方式</text>
+          </g>
+
+          <line class="flow-path" x1="350" y1="132" x2="312" y2="132"
+                stroke="url(#path-grad)" stroke-width="2" marker-end="url(#arrow)" data-delay="1.65"/>
+
+          <g class="flow-node" data-delay="1.8">
+            <rect x="180" y="105" width="130" height="55" rx="10"
+                  fill="var(--card)" stroke="var(--primary)" stroke-width="1.5"/>
+            <text x="245" y="128" text-anchor="middle" fill="var(--primary)" font-size="10" font-weight="700" letter-spacing="1">STEP 5</text>
+            <text x="245" y="147" text-anchor="middle" fill="var(--text)" font-size="12">描述智能体</text>
+          </g>
+
+          <line class="flow-path" x1="180" y1="132" x2="142" y2="132"
+                stroke="url(#path-grad)" stroke-width="2" marker-end="url(#arrow)" data-delay="2.1"/>
+
+          <!-- Final node -->
+          <g class="flow-node" data-delay="2.25">
+            <rect x="10" y="105" width="130" height="55" rx="10"
+                  fill="rgba(var(--primary-rgb),0.15)" stroke="var(--accent)" stroke-width="2" filter="url(#node-glow)"/>
+            <text x="75" y="128" text-anchor="middle" fill="var(--accent)" font-size="10" font-weight="700" letter-spacing="1">STEP 6</text>
+            <text x="75" y="147" text-anchor="middle" fill="var(--text)" font-size="12">配置权限</text>
+          </g>
+
+          <text class="flow-label" x="75" y="180" text-anchor="middle" fill="var(--accent)" font-size="16" data-delay="2.7">✅ 创建完成</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5: Step Details -->
+  <section class="slide" id="slide-5" data-index="4">
+    <div class="slide-inner">
+      <div class="section-label">步骤详解</div>
+      <h2 class="slide-title">每一步在做什么</h2>
+      <div class="cards-grid cards-grid-3" style="margin-top: 8px;">
+        <div class="card step-card">
+          <div class="step-num">1</div>
+          <div>
+            <div class="step-title">输入 /agent</div>
+            <div class="step-desc">在 Claude Code 命令行直接输入，打开智能体管理面板</div>
+          </div>
+        </div>
+        <div class="card step-card">
+          <div class="step-num">2</div>
+          <div>
+            <div class="step-title">新建智能体</div>
+            <div class="step-desc">选择 "create new agent" 开始创建流程</div>
+          </div>
+        </div>
+        <div class="card step-card">
+          <div class="step-num">3</div>
+          <div>
+            <div class="step-title">选择存储级别</div>
+            <div class="step-desc">Project（项目级）或 Personal（用户级），按需选择</div>
+          </div>
+        </div>
+        <div class="card step-card">
+          <div class="step-num">4</div>
+          <div>
+            <div class="step-title">选择创建方式</div>
+            <div class="step-desc">推荐 "Generate with Claude"，AI 自动生成完整 system prompt</div>
+          </div>
+        </div>
+        <div class="card step-card">
+          <div class="step-num">5</div>
+          <div>
+            <div class="step-title">描述智能体需求</div>
+            <div class="step-desc">越详细越好，包含角色定位、分析框架、输出格式、行为原则</div>
+          </div>
+        </div>
+        <div class="card step-card">
+          <div class="step-num">6</div>
+          <div>
+            <div class="step-title">配置工具权限 ✅</div>
+            <div class="step-desc">选择可用工具后点击 Continue，智能体即创建完成</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 6: Tool Permissions -->
+  <section class="slide" id="slide-6" data-index="5">
+    <div class="slide-inner">
+      <div class="section-label">工具权限</div>
+      <h2 class="slide-title">按需授权，精准控制</h2>
+      <p class="slide-desc">每种工具类型适合不同场景，分析类智能体建议选择全部工具</p>
+      <div class="cards-grid cards-grid-3">
+        <div class="card tool-card">
+          <div class="tool-name">📖 Read</div>
+          <div class="tool-desc">读取文件内容，获取完整上下文</div>
+          <span class="tool-badge badge-must">分析类必选</span>
+        </div>
+        <div class="card tool-card">
+          <div class="tool-name">✏️ Edit / Write</div>
+          <div class="tool-desc">修改或创建文件</div>
+          <span class="tool-badge badge-must">代码生成类必选</span>
+        </div>
+        <div class="card tool-card">
+          <div class="tool-name">🔍 Glob / Grep</div>
+          <div class="tool-desc">搜索文件名和文件内容</div>
+          <span class="tool-badge badge-must">代码审查类必选</span>
+        </div>
+        <div class="card tool-card">
+          <div class="tool-name">💻 Bash</div>
+          <div class="tool-desc">执行终端命令和脚本</div>
+          <span class="tool-badge badge-warn">谨慎授权</span>
+        </div>
+        <div class="card tool-card">
+          <div class="tool-name">🌐 WebSearch</div>
+          <div class="tool-desc">联网搜索最新信息</div>
+          <span class="tool-badge badge-opt">调研类可选</span>
+        </div>
+        <div class="card tool-card">
+          <div class="tool-name">🌍 WebFetch</div>
+          <div class="tool-desc">访问并读取指定网页内容</div>
+          <span class="tool-badge badge-opt">调研类可选</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 7: System Prompt Tips -->
+  <section class="slide" id="slide-7" data-index="6">
+    <div class="slide-inner">
+      <div class="section-label">最佳实践</div>
+      <h2 class="slide-title">写好 System Prompt</h2>
+      <p class="slide-desc">三个技巧，大幅提升智能体响应质量与一致性</p>
+      <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 8px;">
+        <div class="card tip-card">
+          <div class="tip-label">TIP 01</div>
+          <div class="tip-title">角色设定要具体</div>
+          <div class="tip-desc">不要写"你是一个助手"，要写"你是一位有 10 年 XX 经验的..."。具体的身份会带来更聚焦的输出，减少无关内容。</div>
+        </div>
+        <div class="card tip-card">
+          <div class="tip-label">TIP 02</div>
+          <div class="tip-title">明确输出格式</div>
+          <div class="tip-desc">在 prompt 中直接规定输出结构（如：必须包含结论、分析、建议三部分），可以大幅提升响应质量和一致性。</div>
+        </div>
+        <div class="card tip-card">
+          <div class="tip-label">TIP 03</div>
+          <div class="tip-title">设定行为边界</div>
+          <div class="tip-desc">告诉智能体什么情况下要主动说"信息不足"，避免凭空捏造数据。结论先行，数据支撑，不做无依据的乐观预测。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 8: More Ideas -->
+  <section class="slide" id="slide-8" data-index="7">
+    <div class="slide-inner">
+      <div class="section-label">更多创意</div>
+      <h2 class="slide-title">智能体应用场景</h2>
+      <p class="slide-desc">不同业务场景下的智能体构建方向，开箱即用</p>
+      <div class="cards-grid cards-grid-3">
+        <div class="card idea-card">
+          <div class="idea-icon">🔍</div>
+          <div class="idea-title">代码审查</div>
+          <div class="idea-desc">安全专家 + 性能优化 + 最佳实践检查，自动输出审查报告</div>
+        </div>
+        <div class="card idea-card">
+          <div class="idea-icon">📝</div>
+          <div class="idea-title">文档写作</div>
+          <div class="idea-desc">技术写作专家，将代码逻辑转为清晰的用户文档</div>
+        </div>
+        <div class="card idea-card">
+          <div class="idea-icon">🐛</div>
+          <div class="idea-title">调试助手</div>
+          <div class="idea-desc">系统性定位 Bug，输出根因分析报告和修复建议</div>
+        </div>
+        <div class="card idea-card">
+          <div class="idea-icon">🎨</div>
+          <div class="idea-title">UI/UX 评审</div>
+          <div class="idea-desc">用户体验专家，从可用性角度提出具体改进意见</div>
+        </div>
+        <div class="card idea-card">
+          <div class="idea-icon">📊</div>
+          <div class="idea-title">数据分析</div>
+          <div class="idea-desc">数据科学家，分析业务指标并给出可视化方案建议</div>
+        </div>
+        <div class="card idea-card">
+          <div class="idea-icon">🤖</div>
+          <div class="idea-title">产品经理</div>
+          <div class="idea-desc">RICE 模型评分，可行性 + 市场价值 + 竞品全面分析</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 9: Closing / File Structure -->
+  <section class="slide" id="slide-9" data-index="8">
+    <div class="slide-inner" style="text-align: center;">
+      <div class="section-label" style="display: inline-block;">智能体文件结构</div>
+      <h2 class="slide-title">创建完成后</h2>
+      <p class="slide-desc" style="margin: 0 auto 32px;">在对应目录找到 <code style="background:rgba(var(--primary-rgb),.12);color:var(--primary);border-radius:4px;padding:1px 6px;font-family:monospace">.md</code> 文件，YAML frontmatter + system prompt 正文，可直接手动编辑微调</p>
+      <div class="cards-grid cards-grid-2" style="max-width: 680px; margin: 0 auto 28px;">
+        <div class="card mono-block">
+          <div class="mono-dim">项目目录/</div>
+          <div class="mono-muted">└── .claude/</div>
+          <div class="mono-muted">&nbsp;&nbsp;&nbsp;&nbsp;└── agents/</div>
+          <div class="mono-accent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── product-manager.md</div>
+        </div>
+        <div class="card mono-block">
+          <div class="mono-dim">~/.claude/</div>
+          <div class="mono-muted">└── agents/</div>
+          <div class="mono-accent">&nbsp;&nbsp;&nbsp;&nbsp;└── my-assistant.md</div>
+        </div>
+      </div>
+      <div class="check-list" style="max-width: 480px; margin: 0 auto;">
+        <div class="check-item"><div class="check-dot"></div>YAML frontmatter 包含名称和工具权限</div>
+        <div class="check-item"><div class="check-dot"></div>正文为完整 system prompt，可直接编辑</div>
+        <div class="check-item"><div class="check-dot"></div>项目级与 git 版本控制一同管理</div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    /* System 1: Multi-slide Navigation */
+    (function () {
+      const TOTAL = document.querySelectorAll('.slide').length;
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const progressBar = document.getElementById('progress');
+      const counter = document.getElementById('counter');
+      const navDotsContainer = document.getElementById('nav-dots');
+      let current = 0;
+
+      slides.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = 'dot' + (i === 0 ? ' active' : '');
+        d.setAttribute('aria-label', `跳转到第 ${i + 1} 张`);
+        d.addEventListener('click', () => goTo(i));
+        navDotsContainer.appendChild(d);
+      });
+
+      function updateUI(idx) {
+        current = idx;
+        const pct = TOTAL <= 1 ? 100 : (idx / (TOTAL - 1)) * 100;
+        progressBar.style.width = pct + '%';
+        counter.textContent = (idx + 1) + ' / ' + TOTAL;
+        document.querySelectorAll('.dot').forEach((d, i) =>
+          d.classList.toggle('active', i === idx)
+        );
+      }
+
+      function goTo(idx) {
+        idx = Math.max(0, Math.min(TOTAL - 1, idx));
+        slides[idx].scrollIntoView({ behavior: 'smooth' });
+      }
+
+      const slideObserver = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            const idx = slides.indexOf(e.target);
+            if (idx !== -1) updateUI(idx);
+          }
+        });
+      }, { threshold: 0.5 });
+      slides.forEach(s => slideObserver.observe(s));
+
+      document.addEventListener('keydown', e => {
+        const map = { ArrowDown:1, ArrowRight:1, PageDown:1, ArrowUp:-1, ArrowLeft:-1, PageUp:-1 };
+        if (map[e.key] !== undefined) { e.preventDefault(); goTo(current + map[e.key]); }
+        if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+        if (e.key === 'End')  { e.preventDefault(); goTo(TOTAL - 1); }
+      });
+
+      let touchStartY = 0;
+      document.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+      document.addEventListener('touchend', e => {
+        const dy = touchStartY - e.changedTouches[0].clientY;
+        if (Math.abs(dy) > 50) goTo(current + (dy > 0 ? 1 : -1));
+      }, { passive: true });
+
+      updateUI(0);
+    })();
+
+    /* System 2: Staggered Reveal Animation */
+    (function () {
+      document.querySelectorAll('.slide-inner').forEach(inner => {
+        Array.from(inner.children).forEach(child => child.classList.add('reveal'));
+      });
+      document.querySelectorAll('.cards-grid').forEach(grid => grid.classList.add('cards-reveal'));
+
+      const revealObserver = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            e.target.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+            e.target.querySelectorAll('.cards-reveal').forEach(el => el.classList.add('visible'));
+            if (typeof animateDiagram === 'function') animateDiagram(e.target);
+          } else {
+            e.target.querySelectorAll('.reveal').forEach(el => el.classList.remove('visible'));
+            e.target.querySelectorAll('.cards-reveal').forEach(el => el.classList.remove('visible'));
+            if (typeof resetDiagram === 'function') resetDiagram(e.target);
+          }
+        });
+      }, { threshold: 0.15 });
+
+      document.querySelectorAll('.slide').forEach(s => revealObserver.observe(s));
+    })();
+
+    /* System 3: Card Micro-interactions */
+    (function () {
+      document.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('mousemove', e => {
+          const r = card.getBoundingClientRect();
+          card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+          card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+        });
+      });
+    })();
+
+    /* System 4: Flow Diagram Animation */
+    (function () {
+      document.querySelectorAll('.flow-path').forEach(path => {
+        try {
+          const len = path.getTotalLength();
+          path.style.setProperty('--pl', len);
+          path.style.strokeDasharray = len;
+          path.style.strokeDashoffset = len;
+        } catch (_) {
+          const x1 = +path.getAttribute('x1') || 0, y1 = +path.getAttribute('y1') || 0;
+          const x2 = +path.getAttribute('x2') || 0, y2 = +path.getAttribute('y2') || 0;
+          const len = Math.hypot(x2 - x1, y2 - y1);
+          path.style.setProperty('--pl', len);
+          path.style.strokeDasharray = len;
+          path.style.strokeDashoffset = len;
+        }
+      });
+
+      window.animateDiagram = function (slide) {
+        slide.querySelectorAll('.flow-node').forEach(n => {
+          const d = parseFloat(n.dataset.delay || 0);
+          n.style.setProperty('--node-delay', d + 's');
+          setTimeout(() => n.classList.add('visible'), d * 1000);
+        });
+        slide.querySelectorAll('.flow-path').forEach(p => {
+          const d = parseFloat(p.dataset.delay || 0.2);
+          p.style.setProperty('--draw-delay', d + 's');
+          setTimeout(() => p.classList.add('drawn'), d * 1000);
+        });
+        slide.querySelectorAll('.flow-label').forEach(l => {
+          const d = parseFloat(l.dataset.delay || 0);
+          l.style.setProperty('--label-delay', d + 's');
+          setTimeout(() => l.classList.add('visible'), d * 1000);
+        });
+      };
+
+      window.resetDiagram = function (slide) {
+        slide.querySelectorAll('.flow-node').forEach(el => el.classList.remove('visible'));
+        slide.querySelectorAll('.flow-path').forEach(el => el.classList.remove('drawn'));
+        slide.querySelectorAll('.flow-label').forEach(el => el.classList.remove('visible'));
+      };
+    })();
+  </script>
+</body>
+</html>

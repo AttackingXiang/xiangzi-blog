@@ -7,7 +7,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(gh api:*)",
       "WebFetch(domain:api.github.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:opencode.ai)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:deepwiki.com)"
     ]
   }
 }

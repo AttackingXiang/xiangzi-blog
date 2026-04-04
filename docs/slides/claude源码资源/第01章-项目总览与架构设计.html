@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code · 第01章：项目总览与架构设计</title>
+  <style>
+    /* ─── 1. 主题变量：清新绿洲 ─── */
+    :root {
+      --bg: #0d1f17;
+      --card: rgba(255,255,255,.045);
+      --border: rgba(52,211,153,.13);
+      --primary: #34d399;
+      --primary-rgb: 52 211 153;
+      --accent: #6ee7b7;
+      --text: #ecfdf5;
+      --text-muted: #a7f3d0;
+      --text-dim: #4b7a5e;
+      --font: 'SF Pro Display','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+      --mono: 'SF Mono','Fira Code','Cascadia Code','Consolas',monospace;
+    }
+
+    /* ─── 2. Reset + Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-snap-type: y mandatory; overflow-y: scroll; height: 100%; font-family: var(--font); -webkit-font-smoothing: antialiased; }
+    body { height: 100%; background: var(--bg); color: var(--text); }
+
+    /* ─── 3. 系统一：导航 CSS ─── */
+    .slide {
+      scroll-snap-align: start;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 60px 80px;
+      position: relative;
+      box-sizing: border-box;
+      background: var(--bg);
+    }
+    .slide::before {
+      content: ''; position: absolute; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(var(--primary-rgb),.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--primary-rgb),.025) 1px, transparent 1px);
+      background-size: 48px 48px; pointer-events: none;
+    }
+    #progress {
+      position: fixed; top: 0; left: 0; height: 3px; width: 0;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      transition: width .35s ease; z-index: 300;
+      box-shadow: 0 0 10px var(--primary);
+    }
+    #counter {
+      position: fixed; bottom: 24px; right: 28px;
+      font-size: 12px; color: var(--text-dim);
+      letter-spacing: 2px; z-index: 300; font-variant-numeric: tabular-nums;
+    }
+    #nav-dots {
+      position: fixed; right: 20px; top: 50%;
+      transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 8px; z-index: 300;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-dim); cursor: pointer;
+      transition: background .3s, transform .3s, box-shadow .3s;
+    }
+    .dot.active { background: var(--primary); transform: scale(1.6); box-shadow: 0 0 8px var(--primary); }
+
+    /* 点击提示 */
+    #click-hint {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      font-size: 12px; color: var(--text-dim); letter-spacing: 2px;
+      z-index: 300; transition: opacity .5s ease; pointer-events: none;
+      display: flex; align-items: center; gap: 6px;
+    }
+    #click-hint::before {
+      content: ''; display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--primary);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: .3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.4); }
+    }
+
+    /* ─── 4. 系统二：渐近入场 CSS（不自动触发，由系统六控制）─── */
+    .reveal {
+      opacity: 0; transform: translateY(24px);
+      transition: opacity .55s ease, transform .55s cubic-bezier(.22, 1, .36, 1);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .cards-reveal .card {
+      opacity: 0; transform: translateY(20px) scale(.97);
+      transition: opacity .5s ease, transform .5s cubic-bezier(.22, 1, .36, 1);
+    }
+    .cards-reveal .card.visible { opacity: 1 !important; transform: none !important; }
+
+    /* ─── 5. 系统三：卡片动效 ─── */
+    .card {
+      position: relative; overflow: hidden;
+      transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s ease,
+                  border-color .25s ease, opacity .25s ease;
+      will-change: transform;
+    }
+    .card::after {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(220px circle at var(--mx,50%) var(--my,50%),
+        rgba(52,211,153,.08), transparent 70%);
+      opacity: 0; transition: opacity .3s ease; pointer-events: none;
+      border-radius: inherit; z-index: 0;
+    }
+    .card:hover::after { opacity: 1; }
+    .card > * { position: relative; z-index: 1; }
+    .card.visible:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 18px 36px rgba(0,0,0,.35), 0 0 0 1px rgba(var(--primary-rgb),.25);
+      border-color: rgba(var(--primary-rgb),.3);
+    }
+    .card.visible:active { transform: translateY(-2px) scale(.99); transition-duration: 80ms; }
+    .card-row { border-left: 3px solid transparent; transition: transform .25s cubic-bezier(.34,1.56,.64,1), border-left-color .2s ease; }
+    .card-row:hover { transform: translateX(5px); border-left-color: var(--primary); }
+
+    /* ─── 6. 系统六：刷新遮罩 CSS ─── */
+    #reveal-done {
+      position: fixed; inset: 0;
+      background: rgba(5,15,10,.75); backdrop-filter: blur(16px);
+      z-index: 9999; display: flex; align-items: center; justify-content: center;
+    }
+    #reveal-done-box {
+      text-align: center; padding: 52px 64px;
+      background: rgba(13,31,23,.95);
+      border: 1px solid rgba(52,211,153,.3); border-radius: 24px;
+      box-shadow: 0 0 0 1px rgba(52,211,153,.08), 0 40px 80px rgba(0,0,0,.5);
+    }
+    #reveal-done-box p { font-size: 18px; color: var(--text-muted); margin: 0 0 28px; letter-spacing: .5px; }
+    #reveal-done-btn {
+      padding: 14px 44px; background: var(--primary); color: #0a1f12;
+      border: none; border-radius: 12px; font-size: 15px; font-weight: 700;
+      cursor: pointer; letter-spacing: .5px;
+      transition: transform .2s, box-shadow .2s;
+      box-shadow: 0 4px 20px rgba(52,211,153,.4);
+    }
+    #reveal-done-btn:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 28px rgba(52,211,153,.55); }
+
+    /* ─── 7. 布局工具类 ─── */
+    .slide-inner { width: 100%; max-width: 960px; position: relative; z-index: 1; }
+    .section-label {
+      font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--primary); font-weight: 700; margin-bottom: 14px;
+    }
+    .slide-title {
+      font-size: clamp(28px,4vw,52px); font-weight: 800;
+      letter-spacing: -1px; line-height: 1.1; margin-bottom: 12px;
+    }
+    .slide-desc {
+      font-size: 15px; color: var(--text-muted);
+      line-height: 1.75; margin-bottom: 32px; max-width: 640px;
+    }
+    .cards-grid { display: grid; gap: 16px; }
+    .cards-grid-2 { grid-template-columns: 1fr 1fr; }
+    .cards-grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+    /* ─── 8. 幻灯片专属样式 ─── */
+
+    /* Slide 1: 标题页 */
+    .title-slide { text-align: center; }
+    .chapter-tag {
+      display: inline-block; padding: 6px 18px;
+      background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.3);
+      border-radius: 20px; font-size: 12px; letter-spacing: 2px;
+      color: var(--primary); margin-bottom: 28px;
+    }
+    .title-main {
+      font-size: clamp(56px,8vw,108px); font-weight: 900;
+      letter-spacing: -4px; line-height: .88;
+      background: linear-gradient(145deg, var(--accent) 0%, var(--primary) 55%, #059669 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 20px;
+    }
+    .title-sub {
+      font-size: clamp(16px,2.5vw,26px); color: var(--text-muted);
+      font-weight: 300; letter-spacing: 3px; margin-bottom: 40px;
+    }
+    .title-badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .title-badge {
+      padding: 8px 18px; border: 1px solid var(--border);
+      border-radius: 8px; font-size: 12px; color: var(--text-dim); font-family: var(--mono);
+    }
+    .title-badge strong { color: var(--primary); }
+
+    /* Slide 2: 核心特点 */
+    .feature-card { padding: 28px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; }
+    .feature-icon { font-size: 30px; margin-bottom: 14px; }
+    .feature-title { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 10px; }
+    .feature-desc { font-size: 13px; color: var(--text-muted); line-height: 1.75; }
+    .feature-tag {
+      display: inline-block; margin-top: 14px; padding: 3px 10px;
+      background: rgba(52,211,153,.07); border-radius: 4px;
+      font-size: 11px; color: var(--primary); font-family: var(--mono);
+    }
+
+    /* Slide 3: 技术栈 */
+    .tech-table { width: 100%; border-collapse: collapse; }
+    .tech-table tr { border-bottom: 1px solid var(--border); }
+    .tech-table tr:last-child { border-bottom: none; }
+    .tech-row-el {
+      display: flex; align-items: center;
+      padding: 13px 18px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px;
+      transition: border-color .2s, transform .2s;
+    }
+    .tech-row-el:hover { border-color: rgba(52,211,153,.3); transform: translateX(4px); }
+    .tech-name { font-weight: 700; color: var(--accent); font-size: 14px; min-width: 160px; font-family: var(--mono); }
+    .tech-role { color: var(--text-muted); font-size: 13px; flex: 1; }
+    .tech-note { font-size: 11px; color: var(--primary); text-align: right; min-width: 220px; }
+
+    /* Slide 4: 目录结构 */
+    .dir-card { padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
+    .dir-name { font-family: var(--mono); font-size: 14px; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
+    .dir-count { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; letter-spacing: 1px; }
+    .dir-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
+
+    /* Slide 5: 架构流程 */
+    .arch-flow { width: 100%; }
+    .flow-step-card {
+      display: flex; align-items: flex-start; gap: 16px;
+      padding: 14px 18px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 12px;
+    }
+    .flow-step-num {
+      flex-shrink: 0; width: 30px; height: 30px;
+      background: rgba(52,211,153,.12); border: 1px solid rgba(52,211,153,.35);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--primary);
+    }
+    .flow-step-content { flex: 1; }
+    .flow-step-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .flow-step-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; }
+    .flow-step-code {
+      display: inline-block; margin-top: 5px; padding: 2px 8px;
+      background: rgba(52,211,153,.06); border-radius: 4px;
+      font-family: var(--mono); font-size: 11px; color: var(--primary);
+    }
+    .flow-arrow {
+      padding-left: 31px; font-size: 14px; color: var(--text-dim); line-height: 1;
+      margin: 3px 0;
+    }
+    .flow-branch {
+      display: flex; gap: 10px; margin-left: 46px;
+    }
+    .flow-branch-item {
+      flex: 1; padding: 10px 14px;
+      background: rgba(52,211,153,.04); border: 1px dashed rgba(52,211,153,.18);
+      border-radius: 8px;
+    }
+    .flow-branch-item.main { border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.07); }
+    .flow-branch-label { font-size: 10px; color: var(--text-dim); margin-bottom: 4px; letter-spacing: 1px; text-transform: uppercase; }
+    .flow-branch-title { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+    .flow-branch-code { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .flow-step-card.highlight {
+      border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.07);
+    }
+    .flow-step-card.highlight .flow-step-num {
+      background: rgba(52,211,153,.25); border-color: var(--primary);
+    }
+
+    /* Slide 6: 六阶段 */
+    .stages-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .stage-card {
+      padding: 22px 18px 18px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 14px; position: relative;
+    }
+    .stage-num {
+      display: inline-block; padding: 3px 10px; margin-bottom: 12px;
+      background: var(--primary); color: #0a1a0e;
+      border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    }
+    .stage-title { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+    .stage-desc { font-size: 12px; color: var(--text-muted); line-height: 1.65; }
+
+    /* Slide 7: 配置 */
+    .config-card { padding: 28px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; }
+    .config-icon { font-size: 26px; margin-bottom: 14px; }
+    .config-title { font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 14px; }
+    .config-items { list-style: none; }
+    .config-items li {
+      padding: 7px 0; border-bottom: 1px solid rgba(52,211,153,.08);
+      font-size: 12.5px; color: var(--text-muted);
+      display: flex; align-items: flex-start; gap: 8px; line-height: 1.5;
+    }
+    .config-items li:last-child { border-bottom: none; }
+    .config-items li::before { content: '›'; color: var(--primary); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+    /* Slide 8: 哲学 */
+    .quote-block {
+      padding: 22px 26px; background: rgba(52,211,153,.04);
+      border-left: 3px solid var(--primary); border-radius: 0 12px 12px 0; margin-bottom: 24px;
+    }
+    .quote-code { font-family: var(--mono); font-size: 12px; color: var(--accent); line-height: 1.9; }
+    .quote-source { font-size: 11px; color: var(--text-dim); margin-top: 10px; font-family: var(--mono); }
+    .philosophy-card { padding: 22px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; }
+    .philosophy-title { font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+    .philosophy-desc { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+
+    /* Slide 9: 总结 */
+    .summary-word {
+      padding: 36px 20px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; text-align: center;
+    }
+    .summary-zh {
+      font-size: 52px; font-weight: 900; letter-spacing: -2px; margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--primary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .summary-en { font-size: 12px; color: var(--text-dim); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 16px; }
+    .summary-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.7; }
+    .summary-next { text-align: center; margin-top: 40px; font-size: 13px; color: var(--text-dim); }
+    .summary-next span { color: var(--primary); }
+
+    /* ─── 9. 响应式 ─── */
+    @media (max-width: 768px) {
+      .slide { padding: 40px 24px; }
+      .cards-grid-3, .stages-grid { grid-template-columns: 1fr; }
+      .cards-grid-2 { grid-template-columns: 1fr; }
+      .tech-note { display: none; }
+      .title-main { letter-spacing: -2px; }
+      .flow-branch { margin-left: 0; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div id="progress"></div>
+  <div id="counter"></div>
+  <div id="nav-dots"></div>
+  <div id="click-hint">点击屏幕，逐步展示内容</div>
+
+  <!-- ══════════════════ Slide 1: 标题页 ══════════════════ -->
+  <section class="slide" id="slide-1">
+    <div class="slide-inner title-slide">
+      <div class="chapter-tag reveal">第 01 章 · 项目总览</div>
+      <div class="title-main reveal">Claude<br>Code</div>
+      <div class="title-sub reveal">项目总览与架构设计</div>
+      <div class="title-badges reveal">
+        <div class="title-badge"><strong>AsyncGenerator</strong> 管道骨骼</div>
+        <div class="title-badge"><strong>React Ink</strong> 终端皮肤</div>
+        <div class="title-badge"><strong>1884</strong> 个源文件</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ Slide 2: 三个核心特点 ══════════════════ -->
+  <section class="slide" id="slide-2">
+    <div class="slide-inner">
+      <div class="section-label reveal">WHAT IS IT</div>
+      <h2 class="slide-title reveal">三个核心特点</h2>
+      <p class="slide-desc reveal">不是简单的命令行包装器，而是能自主读写文件、执行命令、调用工具的完整系统</p>
+      <div class="cards-grid cards-grid-3 cards-reveal">
+        <div class="card feature-card">
+          <div class="feature-icon">🖥️</div>
+          <div class="feature-title">CLI 优先的 UI</div>
+          <div class="feature-desc">界面完全跑在终端，使用自研 Ink 框架（基于 React），将组件树渲染为 ANSI 转义序列。颜色、进度条、提示框——背后都是 useState 与重渲染</div>
+          <div class="feature-tag">React → ANSI 转义序列</div>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-title">AsyncGenerator 数据流</div>
+          <div class="feature-desc">核心查询循环不是 Promise，而是 AsyncGenerator。每轮 API 调用、每次工具执行的中间结果都以 yield 形式流出，支持任意时刻订阅、暂停或中止</div>
+          <div class="feature-tag">async function* submitMessage()</div>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon">🏗️</div>
+          <div class="feature-title">Feature Flag 编译时分叉</div>
+          <div class="feature-desc">feature() 来自 bun:bundle，在 Bun 打包时求值。未启用的代码分支被彻底裁剪——内外版本共享源码，却生成完全不同的二进制</div>
+          <div class="feature-tag">Dead Code Elimination</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ Slide 3: 技术栈 ══════════════════ -->
+  <section class="slide" id="slide-3">
+    <div class="slide-inner">
+      <div class="section-label reveal">TECH STACK</div>
+      <h2 class="slide-title reveal">技术栈总览</h2>
+      <div class="reveal">
+        <div class="tech-row-el card card-row">
+          <div class="tech-name">Bun</div>
+          <div class="tech-role">运行时 · 构建工具</div>
+          <div class="tech-note">bun:bundle 实现编译时 Feature Flag（Node.js 无此能力）</div>
+        </div>
+        <div class="tech-row-el card card-row">
+          <div class="tech-name">TypeScript + TSX</div>
+          <div class="tech-role">语言层 · 全量类型化</div>
+          <div class="tech-note">1884 个源文件，含 React 组件</div>
+        </div>
+        <div class="tech-row-el card card-row">
+          <div class="tech-name">Ink（自研分支）</div>
+          <div class="tech-role">终端 UI 渲染器</div>
+          <div class="tech-note">96 个文件，React 组件 → ANSI 转义序列</div>
+        </div>
+        <div class="tech-row-el card card-row">
+          <div class="tech-name">React 19</div>
+          <div class="tech-role">组件模型 · 状态管理</div>
+          <div class="tech-note">Hooks / useState 驱动终端重渲染</div>
+        </div>
+        <div class="tech-row-el card card-row">
+          <div class="tech-name">Zod v4</div>
+          <div class="tech-role">Schema 验证</div>
+          <div class="tech-note">工具输入参数的运行时类型检查</div>
+        </div>
+        <div class="tech-row-el card card-row">
+          <div class="tech-name">MCP · LSP · Commander.js</div>
+          <div class="tech-role">扩展协议 · 语言服务 · CLI 解析</div>
+          <div class="tech-note">第三方工具 / IDE 级代码理解 / 参数分发</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ Slide 4: 目录结构 ══════════════════ -->
+  <section class="slide" id="slide-4">
+    <div class="slide-inner">
+      <div class="section-label reveal">SRC DIRECTORY</div>
+      <h2 class="slide-title reveal">35 个模块 · 6 大核心目录</h2>
+      <p class="slide-desc reveal">按功能职责清晰划分，从文件数量可直接看出系统重心所在</p>
+      <div class="cards-grid cards-grid-3 cards-reveal">
+        <div class="card dir-card">
+          <div class="dir-name">utils/</div>
+          <div class="dir-count">564 个文件 ·· 最大</div>
+          <div class="dir-desc">工具函数大本营，含 bash / permissions / settings / swarm 等子目录</div>
+        </div>
+        <div class="card dir-card">
+          <div class="dir-name">components/</div>
+          <div class="dir-count">389 个文件</div>
+          <div class="dir-desc">React 终端 UI 组件库，所有可见界面元素</div>
+        </div>
+        <div class="card dir-card">
+          <div class="dir-name">commands/</div>
+          <div class="dir-count">189 个文件</div>
+          <div class="dir-desc">70+ 斜杠命令 /clear · /compact · /commit 的具体实现</div>
+        </div>
+        <div class="card dir-card">
+          <div class="dir-name">tools/</div>
+          <div class="dir-count">184 个文件</div>
+          <div class="dir-desc">BashTool · FileEditTool · AgentTool 等核心工具实现</div>
+        </div>
+        <div class="card dir-card">
+          <div class="dir-name">services/</div>
+          <div class="dir-count">130 个文件</div>
+          <div class="dir-desc">API 客户端 · MCP 服务 · 分析上报 · LSP 语言服务</div>
+        </div>
+        <div class="card dir-card">
+          <div class="dir-name">hooks/</div>
+          <div class="dir-count">104 个文件</div>
+          <div class="dir-desc">React Hooks，连接业务逻辑与 UI 状态的桥梁</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ Slide 5: 架构图（点击渐进展示）══════════════════ -->
+  <section class="slide" id="slide-5">
+    <div class="slide-inner">
+      <div class="section-label reveal">CORE ARCHITECTURE</div>
+      <h2 class="slide-title reveal">AsyncGenerator 管道</h2>
+      <p class="slide-desc reveal" style="margin-bottom:16px;">
+        一次完整用户问答轮次（Turn）的数据流路径 — 点击逐步展开
+      </p>
+      <div class="arch-flow">
+
+        <div class="flow-step-card reveal">
+          <div class="flow-step-num">①</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">用户击键 → stdin 捕获</div>
+            <div class="flow-step-desc">Ink 框架通过 process.stdin 捕获原始键盘事件，经 hooks/useTextInput 处理后触发 REPL 组件的状态更新</div>
+          </div>
+        </div>
+
+        <div class="flow-arrow reveal">↓</div>
+
+        <div class="flow-step-card reveal">
+          <div class="flow-step-num">②</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">processUserInput — 路由分发</div>
+            <div class="flow-step-desc">识别输入类型，斜杠命令与自然语言走不同路径
+              <span class="flow-step-code">utils/processUserInput/processUserInput.ts</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-arrow reveal">↓</div>
+
+        <div class="flow-branch reveal">
+          <div class="flow-branch-item">
+            <div class="flow-branch-label">路径 A — 斜杠命令</div>
+            <div class="flow-branch-title">commands/ 处理器</div>
+            <div class="flow-branch-code">/clear · /compact · /commit · 70+ 命令</div>
+          </div>
+          <div class="flow-branch-item main">
+            <div class="flow-branch-label">路径 B — 自然语言 ↓</div>
+            <div class="flow-branch-title">query() 核心循环</div>
+            <div class="flow-branch-code">src/query.ts · AsyncGenerator</div>
+          </div>
+        </div>
+
+        <div class="flow-arrow reveal" style="padding-left:calc(50% + 6px)">↓</div>
+
+        <div class="flow-step-card reveal">
+          <div class="flow-step-num">③</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">Claude API → 流式事件</div>
+            <div class="flow-step-desc">组装 System Prompt（含 CLAUDE.md），发送请求，AsyncGenerator 逐条 yield：assistant_message · stream_event · compact_boundary</div>
+          </div>
+        </div>
+
+        <div class="flow-arrow reveal">↓</div>
+
+        <div class="flow-step-card reveal">
+          <div class="flow-step-num">④</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">工具调用 → BashTool · FileEditTool · AgentTool</div>
+            <div class="flow-step-desc">解析 tool_use 块，构建 ToolUseContext（含 AbortController · 权限检查 · UI 更新通道），执行工具后 ToolResult 包装为 user 消息<strong style="color:var(--primary)"> 重入 query() 循环</strong></div>
+          </div>
+        </div>
+
+        <div class="flow-arrow reveal">↓</div>
+
+        <div class="flow-step-card highlight reveal">
+          <div class="flow-step-num">⑤</div>
+          <div class="flow-step-content">
+            <div class="flow-step-title">end_turn → QueryEngine yield → Ink 渲染</div>
+            <div class="flow-step-desc">stop_reason='end_turn' 后，QueryEngine.submitMessage() yield 出 SDKMessage，REPL 经 useLogMessages Hook 订阅更新，触发 Ink 重渲终端输出</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ Slide 6: 数据流六阶段 ══════════════════ -->
+  <section class="slide" id="slide-6">
+    <div class="slide-inner">
+      <div class="section-label reveal">DATA FLOW</div>
+      <h2 class="slide-title reveal">六阶段数据流</h2>
+      <p class="slide-desc reveal" style="margin-bottom:24px;">从用户击键到终端渲染的完整旅程，每阶段职责清晰</p>
+      <div class="stages-grid">
+        <div class="stage-card reveal">
+          <div class="stage-num">STAGE 1</div>
+          <div class="stage-title">用户输入捕获</div>
+          <div class="stage-desc">Ink 通过 process.stdin 捕获键盘事件，hooks/useTextInput 处理后更新 REPL 组件状态</div>
+        </div>
+        <div class="stage-card reveal">
+          <div class="stage-num">STAGE 2</div>
+          <div class="stage-title">输入预处理</div>
+          <div class="stage-desc">processUserInput 识别斜杠命令并路由到 commands/，普通输入打包为 UserMessage 继续</div>
+        </div>
+        <div class="stage-card reveal">
+          <div class="stage-num">STAGE 3</div>
+          <div class="stage-title">query() 核心循环</div>
+          <div class="stage-desc">组装 System Prompt（含 CLAUDE.md 内容），发给 Claude API，处理自动压缩与 Token 预算超限</div>
+        </div>
+        <div class="stage-card reveal">
+          <div class="stage-num">STAGE 4</div>
+          <div class="stage-title">工具执行</div>
+          <div class="stage-desc">找到工具（findToolByName），构建 ToolUseContext，调用 tool.call()，执行 Bash · FileEdit · Agent · MCP</div>
+        </div>
+        <div class="stage-card reveal">
+          <div class="stage-num">STAGE 5</div>
+          <div class="stage-title">结果归集与递归</div>
+          <div class="stage-desc">ToolResult 包装为 user 消息重入 query()，直到 end_turn · Token 耗尽 · 用户中断 · maxTurns 达到</div>
+        </div>
+        <div class="stage-card reveal">
+          <div class="stage-num">STAGE 6</div>
+          <div class="stage-title">Ink 渲染输出</div>
+          <div class="stage-desc">QueryEngine yield SDKMessage → useLogMessages Hook 订阅 → React 状态更新 → Ink 重渲终端</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ Slide 7: 三层关键配置 ══════════════════ -->
+  <section class="slide" id="slide-7">
+    <div class="slide-inner">
+      <div class="section-label reveal">CONFIGURATION</div>
+      <h2 class="slide-title reveal">三层关键配置</h2>
+      <p class="slide-desc reveal">控制 Claude Code 行为的完整配置体系</p>
+      <div class="cards-grid cards-grid-3 cards-reveal">
+        <div class="card config-card">
+          <div class="config-icon">📄</div>
+          <div class="config-title">CLAUDE.md</div>
+          <ul class="config-items">
+            <li>~/.claude/CLAUDE.md（全局用户级）</li>
+            <li>项目根目录 CLAUDE.md（项目级）</li>
+            <li>当前工作目录（本地级）</li>
+            <li>内容注入 System Prompt 用户上下文</li>
+            <li>每次 API 调用时随消息一起发送</li>
+          </ul>
+        </div>
+        <div class="card config-card">
+          <div class="config-icon">⚙️</div>
+          <div class="config-title">settings.json（五层优先级）</div>
+          <ul class="config-items">
+            <li>userSettings — 全局，最低优先</li>
+            <li>projectSettings — 项目级</li>
+            <li>localSettings — 本地覆盖</li>
+            <li>flagSettings — 命令行，最高</li>
+            <li>policySettings — 企业锁定，防覆盖</li>
+          </ul>
+        </div>
+        <div class="card config-card">
+          <div class="config-icon">🚩</div>
+          <div class="config-title">Feature Flag（两种机制）</div>
+          <ul class="config-items">
+            <li>编译时：bun:bundle 的 feature()</li>
+            <li>未启用分支物理删除于产物</li>
+            <li>外部版本 SleepTool 根本不存在</li>
+            <li>运行时：GrowthBook 动态开关</li>
+            <li>A/B 测试与灰度发布</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ Slide 8: 全局单例哲学 ══════════════════ -->
+  <section class="slide" id="slide-8">
+    <div class="slide-inner">
+      <div class="section-label reveal">DESIGN PHILOSOPHY</div>
+      <h2 class="slide-title reveal">全局单例状态的设计哲学</h2>
+      <div class="quote-block reveal">
+        <div class="quote-code">
+          // DO NOT ADD MORE STATE HERE - BE JUDICIOUS WITH GLOBAL STATE<br><br>
+          // ALSO HERE - THINK THRICE BEFORE MODIFYING<br><br>
+          // AND ESPECIALLY HERE<br>
+          const STATE: State = getInitialState()
+        </div>
+        <div class="quote-source">src/bootstrap/state.ts:31 · 259 · 428-429 — 整个代码库注释最密集的文件</div>
+      </div>
+      <div class="cards-grid cards-grid-2 cards-reveal">
+        <div class="card philosophy-card">
+          <div class="philosophy-title">全局状态是必要的恶，不是便利的工具</div>
+          <div class="philosophy-desc">约 60 个字段，每个字段都有清晰的注释说明其存在理由。三条重复出现的强调性警告，体现了作者对状态膨胀的高度警惕</div>
+        </div>
+        <div class="card philosophy-card">
+          <div class="philosophy-title">函数式 Setter 保证状态可追踪</div>
+          <div class="philosophy-desc">没有 STATE.field = value 这样的直接赋值暴露在外。所有修改通过 setAppState(f: prev → AppState) 进行，兼容 React 不可变状态模型，使变更可追踪</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ Slide 9: 总结 ══════════════════ -->
+  <section class="slide" id="slide-9">
+    <div class="slide-inner">
+      <div class="section-label reveal" style="text-align:center">CONCLUSION</div>
+      <h2 class="slide-title reveal" style="text-align:center; margin-bottom:40px;">三个词读懂 Claude Code</h2>
+      <div class="cards-grid cards-grid-3 cards-reveal">
+        <div class="card summary-word">
+          <div class="summary-zh">管道</div>
+          <div class="summary-en">Pipeline</div>
+          <div class="summary-desc">AsyncGenerator 是骨骼。API 调用、工具执行、UI 渲染三件事同步推进，互不阻塞</div>
+        </div>
+        <div class="card summary-word">
+          <div class="summary-zh">插件</div>
+          <div class="summary-en">Plugin</div>
+          <div class="summary-desc">Tool 接口定义统一契约（call · isEnabled · isReadOnly），任何满足接口的对象均可注入系统</div>
+        </div>
+        <div class="card summary-word">
+          <div class="summary-zh">分层</div>
+          <div class="summary-en">Layered</div>
+          <div class="summary-desc">从 policySettings 到 flagSettings 的优先级链，同一套代码在个人开发者与企业环境中表现不同</div>
+        </div>
+      </div>
+      <div class="summary-next reveal">
+        下一章：<span>main.tsx 入口</span> → 启动流程与快速路径分发详解
+      </div>
+    </div>
+  </section>
+
+  <script>
+  /* ═══ 系统一：导航状态机 ═══ */
+  (function () {
+    const TOTAL = document.querySelectorAll('.slide').length;
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const progressBar = document.getElementById('progress');
+    const counter = document.getElementById('counter');
+    const navDotsContainer = document.getElementById('nav-dots');
+    let current = 0;
+
+    slides.forEach((_, i) => {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i === 0 ? ' active' : '');
+      d.setAttribute('aria-label', '跳转到第 ' + (i + 1) + ' 张');
+      d.addEventListener('click', () => goTo(i));
+      navDotsContainer.appendChild(d);
+    });
+
+    function updateUI(idx) {
+      current = idx;
+      const pct = TOTAL <= 1 ? 100 : (idx / (TOTAL - 1)) * 100;
+      progressBar.style.width = pct + '%';
+      counter.textContent = (idx + 1) + ' / ' + TOTAL;
+      document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+    }
+
+    function goTo(idx) {
+      idx = Math.max(0, Math.min(TOTAL - 1, idx));
+      slides[idx].scrollIntoView({ behavior: 'smooth' });
+    }
+
+    const slideObserver = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const idx = slides.indexOf(e.target);
+          if (idx !== -1) updateUI(idx);
+        }
+      });
+    }, { threshold: 0.5 });
+    slides.forEach(s => slideObserver.observe(s));
+
+    document.addEventListener('keydown', e => {
+      const map = { ArrowDown:1, ArrowRight:1, PageDown:1, ArrowUp:-1, ArrowLeft:-1, PageUp:-1 };
+      if (map[e.key] !== undefined) { e.preventDefault(); goTo(current + map[e.key]); }
+      if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+      if (e.key === 'End')  { e.preventDefault(); goTo(TOTAL - 1); }
+    });
+
+    let touchStartY = 0;
+    document.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+    document.addEventListener('touchend', e => {
+      const dy = touchStartY - e.changedTouches[0].clientY;
+      if (Math.abs(dy) > 50) goTo(current + (dy > 0 ? 1 : -1));
+    }, { passive: true });
+
+    updateUI(0);
+  })();
+
+  /* ═══ 系统三：卡片鼠标跟随光晕 ═══ */
+  (function () {
+    document.querySelectorAll('.card, .card-row').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+        card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+      });
+    });
+  })();
+
+  /* ═══ 系统六：点击逐步展示 ═══ */
+  (function () {
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const hint = document.getElementById('click-hint');
+
+    function buildQueue(slide) {
+      const queue = [];
+      // 直接 .reveal 元素（排除 .cards-reveal 容器本身）
+      slide.querySelectorAll('.reveal').forEach(el => {
+        if (!el.classList.contains('cards-reveal')) queue.push(el);
+      });
+      // .cards-reveal 内单张卡片独立入队
+      slide.querySelectorAll('.cards-reveal .card').forEach(card => queue.push(card));
+      return queue;
+    }
+
+    const queues = slides.map(buildQueue);
+    const counts = new Array(slides.length).fill(0);
+    let currentIdx = 0;
+    let hintHidden = false;
+
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const idx = slides.indexOf(e.target);
+          if (idx !== -1) currentIdx = idx;
+        }
+      });
+    }, { threshold: 0.5 });
+    slides.forEach(s => obs.observe(s));
+
+    function allDone() {
+      return queues.every((q, i) => q.length === 0 || counts[i] >= q.length);
+    }
+
+    function showRefreshOverlay() {
+      if (document.getElementById('reveal-done')) return;
+      const overlay = document.createElement('div');
+      overlay.id = 'reveal-done';
+      overlay.innerHTML =
+        '<div id="reveal-done-box">' +
+          '<p>演示已全部展示完毕</p>' +
+          '<button id="reveal-done-btn" onclick="location.reload()">点击刷新重播</button>' +
+        '</div>';
+      document.body.appendChild(overlay);
+    }
+
+    document.addEventListener('click', e => {
+      if (e.target.closest('#nav-dots, #progress, #counter, #reveal-done')) return;
+
+      // 隐藏提示
+      if (!hintHidden) {
+        hintHidden = true;
+        hint.style.opacity = '0';
+        setTimeout(() => hint.style.display = 'none', 500);
+      }
+
+      const q = queues[currentIdx];
+      const c = counts[currentIdx];
+      if (c < q.length) {
+        q[c].classList.add('visible');
+        counts[currentIdx]++;
+        if (allDone()) showRefreshOverlay();
+      }
+    });
+  })();
+  </script>
+</body>
+</html>
