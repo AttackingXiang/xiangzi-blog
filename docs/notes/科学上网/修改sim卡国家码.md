@@ -68,4 +68,4 @@ https://github.com/Ackites/Nrfr
 
 <img src="%E4%BF%AE%E6%94%B9sim%E5%8D%A1%E5%9B%BD%E5%AE%B6%E7%A0%81.assets/image-20260412201606746.png" alt="image-20260412201606746" style="zoom:50%;" />
 
-点击保存生效，修改完成
+点击保存生效，修改完成，可以尝试tiktok应用了
