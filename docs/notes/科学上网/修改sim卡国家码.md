@@ -22,13 +22,17 @@ https://github.com/Ackites/Nrfr
 
 
 
-3、打开USB调试，打开“USB安装”，打开USB调试（安全设置）
+3、打开“USB调试”，打开“USB安装”，打开“USB调试（安全设置）"
 
 
 
 然后手机连接电脑
 
 打开github下载的软件
+
+解压后运行
+
+![image-20260412202526675](%E4%BF%AE%E6%94%B9sim%E5%8D%A1%E5%9B%BD%E5%AE%B6%E7%A0%81.assets/image-20260412202526675.png)
 
 选择设备
 
