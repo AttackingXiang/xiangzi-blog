@@ -60,12 +60,12 @@ https://github.com/Ackites/Nrfr
 
 手机这里的shizuku第一行，等待一下会提示正在运行
 
-<img src="%E4%BF%AE%E6%94%B9sim%E5%8D%A1%E5%9B%BD%E5%AE%B6%E7%A0%81.assets/image-20260412201540101.png" alt="image-20260412201540101" style="zoom:50%;" />
+![image-20260412201054059](%E4%BF%AE%E6%94%B9sim%E5%8D%A1%E5%9B%BD%E5%AE%B6%E7%A0%81.assets/image-20260412201540101.png)
 
 打开另一个软件nrfr
 
 选择你要变的sim卡，选择国家码，选择运营商（运营商随便选择一个）
 
-<img src="%E4%BF%AE%E6%94%B9sim%E5%8D%A1%E5%9B%BD%E5%AE%B6%E7%A0%81.assets/image-20260412201606746.png" alt="image-20260412201606746" style="zoom:50%;" />
+![image-20260412201054059](%E4%BF%AE%E6%94%B9sim%E5%8D%A1%E5%9B%BD%E5%AE%B6%E7%A0%81.assets/image-20260412201606746.png)
 
 点击保存生效，修改完成，可以尝试tiktok应用了
