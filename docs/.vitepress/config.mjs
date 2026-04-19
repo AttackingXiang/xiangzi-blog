@@ -16,7 +16,8 @@ const vitepressConfig = {
       { text: '首页', link: '/' },
       { text: '科学上网', link: '/notes/科学上网/index', activeMatch: '/notes/科学上网/' },
       { text: 'Vibe Coding', link: '/notes/vibe-coding/index', activeMatch: '/notes/vibe-coding/' },
-      { text: 'Claude 源码', link: '/notes/claude源码资源/index', activeMatch: '/notes/claude源码资源/' }
+      { text: 'Claude 源码', link: '/notes/claude源码资源/index', activeMatch: '/notes/claude源码资源/' },
+      { text: '智能体学习', link: '/notes/智能体学习/index', activeMatch: '/notes/智能体学习/' }
     ],
 
     socialLinks: [],
@@ -85,6 +86,11 @@ export default withMermaid(defineConfig(
       ...commonSidebarOptions,
       scanStartPath: 'notes/claude源码资源',
       resolvePath: '/notes/claude源码资源/',
+    },
+    {
+      ...commonSidebarOptions,
+      scanStartPath: 'notes/智能体学习',
+      resolvePath: '/notes/智能体学习/',
     },
   ])
 ))

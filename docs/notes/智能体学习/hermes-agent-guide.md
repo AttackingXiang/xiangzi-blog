@@ -6,14 +6,14 @@
 
 ## 一、配置文件位置
 
-| 文件 | 路径 | 用途 |
-|------|------|------|
-| 主配置 | `~/.hermes/config.yaml` | 模型、provider、工具开关等 |
-| 密钥配置 | `~/.hermes/.env` | API Keys |
-| 会话记录 | `~/.hermes/sessions/` | 历史对话 |
-| 记忆数据 | `~/.hermes/memories/` | 长期记忆 |
-| Skills | `~/.hermes/skills/` | 技能插件 |
-| 日志 | `~/.hermes/logs/` | 运行日志 |
+| 文件     | 路径                    | 用途                       |
+| -------- | ----------------------- | -------------------------- |
+| 主配置   | `~/.hermes/config.yaml` | 模型、provider、工具开关等 |
+| 密钥配置 | `~/.hermes/.env`        | API Keys                   |
+| 会话记录 | `~/.hermes/sessions/`   | 历史对话                   |
+| 记忆数据 | `~/.hermes/memories/`   | 长期记忆                   |
+| Skills   | `~/.hermes/skills/`     | 技能插件                   |
+| 日志     | `~/.hermes/logs/`       | 运行日志                   |
 
 ---
 
@@ -22,8 +22,9 @@
 ```yaml
 # ~/.hermes/config.yaml
 model:
-  default: "MiniMax-Text-01"
+  default: "MiniMax-M2.5"
   provider: "minimax-cn"
+  base_url: "https://api.minimaxi.com/v1"
 ```
 
 ```bash
@@ -101,12 +102,13 @@ hermes model
 vi ~/.hermes/config.yaml
 ```
 
-修改以下两行：
+修改以下字段：
 
 ```yaml
 model:
   default: "模型名称"
   provider: "provider名称"
+  base_url: "接口地址"    # 云端 provider 通常不需要填，私有部署必填
 ```
 
 ---
@@ -115,32 +117,31 @@ model:
 
 ### 云端服务
 
-| Provider 值 | 说明 | 需要的 Key |
-|-------------|------|-----------|
-| `anthropic` | Anthropic 直连 | `ANTHROPIC_API_KEY` |
-| `openrouter` | OpenRouter 聚合 | `OPENROUTER_API_KEY` |
-| `minimax-cn` | MiniMax 中国 | `MINIMAX_CN_API_KEY` |
-| `minimax` | MiniMax 全球 | `MINIMAX_API_KEY` |
-| `gemini` | Google AI Studio | `GOOGLE_API_KEY` |
-| `openai-codex` | OpenAI Codex | `hermes auth` |
-| `nous` | Nous Portal OAuth | `hermes login` |
-| `nous-api` | Nous Portal API | `NOUS_API_KEY` |
-| `copilot` | GitHub Copilot | `GITHUB_TOKEN` |
-| `zai` | ZhipuAI GLM | `GLM_API_KEY` |
-| `kimi-coding` | Kimi / Moonshot | `KIMI_API_KEY` |
-| `huggingface` | HuggingFace | `HF_TOKEN` |
-| `nvidia` | NVIDIA NIM | `NVIDIA_API_KEY` |
-| `ollama-cloud` | Ollama Cloud | `OLLAMA_API_KEY` |
+| Provider 值    | 说明              | 需要的 Key           |
+| -------------- | ----------------- | -------------------- |
+| `anthropic`    | Anthropic 直连    | `ANTHROPIC_API_KEY`  |
+| `openrouter`   | OpenRouter 聚合   | `OPENROUTER_API_KEY` |
+| `minimax-cn`   | MiniMax 中国      | `MINIMAX_CN_API_KEY` |
+| `minimax`      | MiniMax 全球      | `MINIMAX_API_KEY`    |
+| `gemini`       | Google AI Studio  | `GOOGLE_API_KEY`     |
+| `nous`         | Nous Portal OAuth | `hermes login`       |
+| `nous-api`     | Nous Portal API   | `NOUS_API_KEY`       |
+| `copilot`      | GitHub Copilot    | `GITHUB_TOKEN`       |
+| `zai`          | ZhipuAI GLM       | `GLM_API_KEY`        |
+| `kimi-coding`  | Kimi / Moonshot   | `KIMI_API_KEY`       |
+| `huggingface`  | HuggingFace       | `HF_TOKEN`           |
+| `nvidia`       | NVIDIA NIM        | `NVIDIA_API_KEY`     |
+| `ollama-cloud` | Ollama Cloud      | `OLLAMA_API_KEY`     |
 
 ### 本地 / 私有服务（OpenAI 兼容接口）
 
-| Provider 值 | 说明 |
-|-------------|------|
-| `custom` | 通用 OpenAI 兼容接口 |
-| `ollama` | Ollama 本地服务 |
-| `lmstudio` | LM Studio |
-| `vllm` | vLLM 部署 |
-| `llamacpp` | llama.cpp server |
+| Provider 值 | 说明                 |
+| ----------- | -------------------- |
+| `custom`    | 通用 OpenAI 兼容接口 |
+| `ollama`    | Ollama 本地服务      |
+| `lmstudio`  | LM Studio            |
+| `vllm`      | vLLM 部署            |
+| `llamacpp`  | llama.cpp server     |
 
 ---
 
@@ -152,9 +153,9 @@ model:
 
 ```yaml
 model:
-  default: "qwen2.5:72b"              # 填写你的模型名
-  provider: "ollama"                  # 或 vllm / lmstudio / custom
-  base_url: "http://127.0.0.1:11434/v1"  # 你的服务地址
+  default: "qwen2.5:72b"                   # 填写你的模型名
+  provider: "ollama"                        # 或 vllm / lmstudio / custom
+  base_url: "http://127.0.0.1:11434/v1"    # 你的服务地址
 ```
 
 ### 第二步：API Key（可选）
@@ -174,6 +175,7 @@ hermes chat -q "你好"
 ### 常见私有部署示例
 
 **Ollama（本机）**
+
 ```yaml
 model:
   default: "qwen2.5:72b"
@@ -182,6 +184,7 @@ model:
 ```
 
 **vLLM（远程服务器）**
+
 ```yaml
 model:
   default: "Qwen/Qwen2.5-72B-Instruct"
@@ -190,6 +193,7 @@ model:
 ```
 
 **任意 OpenAI 兼容接口**
+
 ```yaml
 model:
   default: "your-model-name"
@@ -254,16 +258,25 @@ hermes sessions prune
 
 ## 十、常见问题
 
+**Q：401 Missing Authentication header？**
+检查 `base_url` 是否填写了错误的地址（如 OpenRouter 地址）。每个 provider 都有自己的接口地址：
+
+- MiniMax China：`https://api.minimaxi.com/v1`
+- MiniMax Global：`https://api.minimax.io/v1`
+- Anthropic：无需填 base_url
+
 **Q：启动报 YAML 警告怎么办？**
 检查 `~/.hermes/config.yaml` 的缩进，确保同级字段缩进一致。可用 `hermes config` 查看当前生效配置。
 
 **Q：如何查看当前使用的模型和 provider？**
+
 ```bash
 hermes version
 hermes config
 ```
 
 **Q：私有模型没有响应？**
+
 ```bash
 # 检查服务是否可达
 curl http://your-server:port/v1/models
@@ -273,6 +286,7 @@ hermes logs -f
 ```
 
 **Q：如何完全重新配置？**
+
 ```bash
 hermes setup
 ```
