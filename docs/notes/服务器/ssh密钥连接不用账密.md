@@ -18,7 +18,7 @@ powershell
 
 ```powershell
 # Windows PowerShell,IP 换成你的
-type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh root@192.168.10.200 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh root@192.168.10.4 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
 ```
 
 **然后在 Proxmox Shell 里改 SSH 配置禁用密码登录**:
