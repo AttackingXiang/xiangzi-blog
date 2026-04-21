@@ -100,7 +100,11 @@ apk add --allow-untrusted ./luci-theme-argon-2.4.3-r20250722.apk
 ```
 
 
-
+---
+title: openwrt
+order: 2
+draft: true
+---
 25版本之前：
 
 ```
